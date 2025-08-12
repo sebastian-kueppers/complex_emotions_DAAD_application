@@ -18,7 +18,7 @@
 ## 2.7 Step 6 – Multifractality
 ## 2.8 Summary Statistics
 
-# 3 ANALYSIS II – FRIED ET AL. (2021)
+# 3 ANALYSIS II – FRIED ET AL. (2022)
 ## 3.1 Data Preparation & Descriptives
 ## 3.2 Step 1 – Significance Tests
 ## 3.3 Step 2 – ACF Analysis
@@ -105,7 +105,7 @@ significance_tests <- c("Bartels",
 
 # (see https://osf.io/nca2u/, Olthof et al., 2020)
 data_Bringmann2013 <- readRDS("data_Bringmann2013.RDS")
-data_Fried2021 <- readRDS("data_Fried2021.RDS")
+data_Fried2022 <- readRDS("data_Fried2022.RDS")
 
 
 # ==========================================================
@@ -356,52 +356,52 @@ mean(test_vectors.Bringmann2013$PAFC.max_lag, na.rm = TRUE) # 6.223684
 
 
 # ==========================================================
-# 3 ANALYSIS II – FRIED ET AL. (2021)
+# 3 ANALYSIS II – FRIED ET AL. (2022)
 # ==========================================================
 
 # --- 3.1 Data Preparation & Descriptives ---
 
-cols.Fried2021 <- c("Relax", "Irritable", "Worry", "Nervous", "Angry")
-subjects.Fried2021 <- unique(data_Fried2021$subj_id)
+cols.Fried2022 <- c("Relax", "Irritable", "Worry", "Nervous", "Angry")
+subjects.Fried2022 <- unique(data_Fried2022$subj_id)
 
-res_Fried2021 <- list()
+res_Fried2022 <- list()
 
-for (subj in subjects.Fried2021) {
+for (subj in subjects.Fried2022) {
   res_df <- data.frame(matrix(NA,
                               nrow = length(tests),
-                              ncol = length(cols.Fried2021),
-                              dimnames = list(tests, cols.Fried2021)))
-  res_Fried2021[[toString(subj)]] <- res_df
+                              ncol = length(cols.Fried2022),
+                              dimnames = list(tests, cols.Fried2022)))
+  res_Fried2022[[toString(subj)]] <- res_df
 }
 
 # Descriptives
-ts_lengths.Fried2021 <- c()
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+ts_lengths.Fried2022 <- c()
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- length(ts)
     
     # append to ts_lengths
-    ts_lengths.Fried2021 <- c(ts_lengths.Fried2021, N)
+    ts_lengths.Fried2022 <- c(ts_lengths.Fried2022, N)
   }
 }
 
-mean(ts_lengths.Fried2021) # 49.95696
+mean(ts_lengths.Fried2022) # 49.95696
 
 
 start <- Sys.time()
 
 # --- 3.2 Step 1 – Significance Tests ---
 
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     if (N < MIN_NUM_OBS) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     bartels_p <- tryCatch(bartels.rank.test(ts, alternative = "two.sided")$p.value, error = function(e) NA)
     res_df["Bartels", col] <- if (is.null(bartels_p) || length(bartels_p) == 0) NA else bartels_p
@@ -418,21 +418,21 @@ for (subj in subjects.Fried2021) {
     tsay_p <- tryCatch(tsayTest(ts)$p.value, error = function(e) NA)
     res_df["Tsay", col] <- if (is.null(tsay_p) || length(tsay_p) == 0) NA else tsay_p
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.3 Step 2 – ACF Analysis ---
 
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     if (N < MIN_NUM_OBS) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     acf_vals <- tryCatch(pacf(ts)$acf, error = function(e) NA)
     if (is.numeric(acf_vals) && length(acf_vals) > 1 && !all(is.na(acf_vals))) {
@@ -442,21 +442,21 @@ for (subj in subjects.Fried2021) {
       res_df["PAFC.max_lag", col] <- if (length(sig_lags)>0) max(sig_lags) else NA
     }
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.4 Step 3 – TV-AR ---
 
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     if (N < MIN_NUM_OBS) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     tt <- 1:(N-1)
     tv <- tryCatch(gam(ts[2:N] ~ s(tt, by = ts[1:(N-1)], k = 10, bs = "tp")), error = function(e) NULL)
@@ -466,21 +466,21 @@ for (subj in subjects.Fried2021) {
       res_df["TV-AR.p", col] <- round(stvar$s.table[4], 4)
     }
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.5 Step 4 – Change Point Analysis ---
 
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     if (N < MIN_NUM_OBS) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     R <- ceiling(20 / ALPHA_LEVEL)
     cp.out <- tryCatch(e.divisive(matrix(ts), R = R, sig.lvl = ALPHA_LEVEL), error = function(e) NULL)
@@ -489,16 +489,16 @@ for (subj in subjects.Fried2021) {
       res_df["CP.n", col] <- cp.n
     }
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.6 Step 5 – Forecast Skill ---
 
-for (subj in subjects.Fried2021) {
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+for (subj in subjects.Fried2022) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     
@@ -509,7 +509,7 @@ for (subj in subjects.Fried2021) {
     # session, so check for that
     if (var(ts) == 0) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     tau <- tryCatch(suppressWarnings(
       timeLag(unlist(ts), technique = "ami", selection.method = "first.minimum", lag.max = 10, do.plot = FALSE)
@@ -541,22 +541,22 @@ for (subj in subjects.Fried2021) {
       }
     }
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.7 Step 6 – Multifractality ---
 
-for (subj in subjects.Fried2021) {
+for (subj in subjects.Fried2022) {
   print(subj)
-  data <- data_Fried2021[data_Fried2021$subj_id == subj, cols.Fried2021]
-  for (col in cols.Fried2021) {
+  data <- data_Fried2022[data_Fried2022$subj_id == subj, cols.Fried2022]
+  for (col in cols.Fried2022) {
     ts <- na.omit(data[[col]])
     N <- sum(!is.na(ts)) 
     if (N < MIN_NUM_OBS) next
     
-    res_df <- res_Fried2021[[toString(subj)]]
+    res_df <- res_Fried2022[[toString(subj)]]
     
     spectrum <- tryCatch(CJspectrum(ts, 1, N, 1), error = function(e) NULL)
     n_surr <- ceiling(pwr.t.test(d = 0.5, sig.level = 0.05, power = 0.80, type = "one.sample")$n)
@@ -576,32 +576,32 @@ for (subj in subjects.Fried2021) {
       res_df["multifractality", col] <- pval.t
     }
     
-    res_Fried2021[[toString(subj)]] <- res_df
+    res_Fried2022[[toString(subj)]] <- res_df
   }
 }
 
 
 # --- 3.8 Summary Statistics ---
 
-test_vectors.Fried2021 <- setNames(vector("list", length(tests)), tests)
+test_vectors.Fried2022 <- setNames(vector("list", length(tests)), tests)
 
-for (res in res_Fried2021) {
+for (res in res_Fried2022) {
   for (test in tests) {
     values <- as.numeric(res[test, , drop = TRUE])
-    test_vectors.Fried2021[[test]] <- c(test_vectors.Fried2021[[test]], values)
+    test_vectors.Fried2022[[test]] <- c(test_vectors.Fried2022[[test]], values)
   }
 }
 
-prop.sig.Fried2021 <- sum(unlist(test_vectors.Fried2021[significance_tests]) < ALPHA_LEVEL, na.rm = TRUE) /
-  length(unlist(test_vectors.Fried2021[significance_tests])) # 0.277396
-prop.sig.Fried2021
+prop.sig.Fried2022 <- sum(unlist(test_vectors.Fried2022[significance_tests]) < ALPHA_LEVEL, na.rm = TRUE) /
+  length(unlist(test_vectors.Fried2022[significance_tests])) # 0.277396
+prop.sig.Fried2022
 # ---> approx. 27.7% of all test x participant x emotion time series display 
 # complexity marker
 
-mean(test_vectors.Fried2021$CP.n, na.rm = TRUE) # 0
-mean(test_vectors.Fried2021$pred_decay, na.rm = TRUE) # -0.6590549
-mean(test_vectors.Fried2021$PAFC.n, na.rm = TRUE) # 0.6910569
-mean(test_vectors.Fried2021$PAFC.max_lag, na.rm = TRUE) # 5.13089
+mean(test_vectors.Fried2022$CP.n, na.rm = TRUE) # 0
+mean(test_vectors.Fried2022$pred_decay, na.rm = TRUE) # -0.6590549
+mean(test_vectors.Fried2022$PAFC.n, na.rm = TRUE) # 0.6910569
+mean(test_vectors.Fried2022$PAFC.max_lag, na.rm = TRUE) # 5.13089
 
 
 # ==========================================================
@@ -623,17 +623,17 @@ sig_tests <- c(
 n.sig_test <- length(sig_tests)
 
 n_tests.Bringmann2013 <- n.sig_test * length(subjects.Bringmann2013) * length(cols.Bringmann2013)
-n_tests.Fried2021 <- n.sig_test * length(subjects.Fried2021) * length(cols.Fried2021)
+n_tests.Fried2022 <- n.sig_test * length(subjects.Fried2022) * length(cols.Fried2022)
 
 x.Bringmann2013 <- round(prop.sig.Bringmann2013 * n_tests.Bringmann2013)
-x.Fried2021 <- round(prop.sig.Fried2021 * n_tests.Fried2021)
+x.Fried2022 <- round(prop.sig.Fried2022 * n_tests.Fried2022)
 
-prop.test(x =  c(x.Bringmann2013, x.Fried2021), n = c(n_tests.Bringmann2013, n_tests.Fried2021), 
+prop.test(x =  c(x.Bringmann2013, x.Fried2022), n = c(n_tests.Bringmann2013, n_tests.Fried2022), 
           alternative = "greater", correct = FALSE)
 
 # 2-sample test for equality of proportions without continuity correction
 # 
-# data:  c(x.Bringmann2013, x.Fried2021) out of c(n_tests.Bringmann2013, n_tests.Fried2021)
+# data:  c(x.Bringmann2013, x.Fried2022) out of c(n_tests.Bringmann2013, n_tests.Fried2022)
 # X-squared = 184, df = 1, p-value < 2.2e-16
 # alternative hypothesis: greater
 # 95 percent confidence interval:
@@ -647,13 +647,13 @@ prop.test(x =  c(x.Bringmann2013, x.Fried2021), n = c(n_tests.Bringmann2013, n_t
 # --- 4.2 Change Point Comparison ---
 
 t.test(test_vectors.Bringmann2013$CP.n,
-       test_vectors.Fried2021$CP.n,
+       test_vectors.Fried2022$CP.n,
        alternative = "greater",
        var.equal = FALSE)
 
 # Welch Two Sample t-test
 # 
-# data:  test_vectors.Bringmann2013$CP.n and test_vectors.Fried2021$CP.n
+# data:  test_vectors.Bringmann2013$CP.n and test_vectors.Fried2022$CP.n
 # t = 25.256, df = 644, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is greater than 0
 # 95 percent confidence interval:
@@ -667,14 +667,14 @@ t.test(test_vectors.Bringmann2013$CP.n,
 
 # --- 4.3 Prediction Decay Comparison ---
 
-t.test(abs(test_vectors.Fried2021$pred_decay),
+t.test(abs(test_vectors.Fried2022$pred_decay),
        abs(test_vectors.Bringmann2013$pred_decay),
        alternative = "greater",
        var.equal = FALSE)
 
 # Welch Two Sample t-test
 # 
-# data:  abs(test_vectors.Fried2021$pred_decay) and abs(test_vectors.Bringmann2013$pred_decay)
+# data:  abs(test_vectors.Fried2022$pred_decay) and abs(test_vectors.Bringmann2013$pred_decay)
 # t = 4.8987, df = 481.79, p-value = 6.599e-07
 # alternative hypothesis: true difference in means is greater than 0
 # 95 percent confidence interval:
@@ -683,19 +683,19 @@ t.test(abs(test_vectors.Fried2021$pred_decay),
 #   mean of x mean of y 
 # 0.6659069 0.4986419 
 
-# --> Fried et al. (2021) has higher abs. prediction decay.
+# --> Fried et al. (2022) has higher abs. prediction decay.
 
 
 # --- 4.4 Partial Autocorrelation Comparison ---
 
 t.test(test_vectors.Bringmann2013$PAFC.n,
-       test_vectors.Fried2021$PAFC.n,
+       test_vectors.Fried2022$PAFC.n,
        alternative = "greater",
        var.equal = FALSE)
 
 # Welch Two Sample t-test
 # 
-# data:  test_vectors.Bringmann2013$PAFC.n and test_vectors.Fried2021$PAFC.n
+# data:  test_vectors.Bringmann2013$PAFC.n and test_vectors.Fried2022$PAFC.n
 # t = 13.608, df = 933.71, p-value < 2.2e-16
 # alternative hypothesis: true difference in means is greater than 0
 # 95 percent confidence interval:
