@@ -3,7 +3,7 @@
 .Rapp.history
 
 # Session Data files
-# .RData
+.RData
 .RDataTmp
 
 # User-specific files
@@ -47,3 +47,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Omit Olthof et al. (2020)
+Olthof2020/
