@@ -371,3 +371,8 @@ ggplot(plot_data.N200.1_7, aes(x = T, y = ratioSig, color = Test, group = Test))
     axis.title.x = element_blank(),
     axis.title.y = element_blank()
   )
+
+
+# 7 --- SOME MORE DESCRIPTIVES ---
+
+mean(agg_df$ratioSig[agg_df$Test == "KPSS.level"])
