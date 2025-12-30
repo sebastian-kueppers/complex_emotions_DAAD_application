@@ -716,6 +716,9 @@ for (source_name in names(data_sources)) {
   }
 }
 
+save(tv_cp_pacf_results_1_100.VAR,
+     tv_cp_pacf_results_1_100.bistable,
+     file = "non-sig_test_results.RData")
 
 ### 4.4 - EDM TESTS - ###
 
@@ -747,40 +750,64 @@ for (source_name in names(data_sources)) {
         )
 
         cat("\nSource:", source_name, "| Scale:", scale_name, "| N:", N_name, "| T:", T_name, "| Persons:", N_persons, "\n")
-        pb <- txtProgressBar(min = 0, max = N_persons, style = 3)
         
-        for (p in seq_len(N_persons)) {
-          ts_data <- lik_data[[p]]
-          
-          for (col in cols) {
-            ts <- ts_data[[col]]
-            N <- length(ts)
+        # Parallelized person loop
+        person_results <- future_map(
+          lik_data,
+          function(ts_data) {
+            res_person <- matrix(NA, nrow = length(edm_tests), ncol = length(cols),
+                                 dimnames = list(edm_tests, cols))
             
-            tau <- tryCatch(suppressWarnings(
-              timeLag(unlist(ts), technique = "ami", selection.method = "first.minimum", lag.max = 10, do.plot = FALSE)
-            ), error = function(e) NA)
-            
-            if (!is.na(tau)) {
-              mid <- floor(N / 2)
-              lib <- c(1, mid)
-              pred <- c(mid + 1, N)
+            for (col in cols) {
+              ts <- ts_data[[col]]
+              print(ts)
+              N <- length(ts)
               
-              e <- tryCatch({
-                emb_out <- suppressWarnings(EmbedDimension(dataFrame = as.data.frame(ts), lib = lib, pred = pred, maxE = 10, Tp = 1, tau = tau, columns = "ts", target = "ts", noTime = TRUE, showPlot = FALSE))
-                emb_out$E[which.max(emb_out$rho)]
-              }, error = function(e) NA)
+              tau <- tryCatch(
+                suppressWarnings(timeLag(unlist(ts), technique = "ami",
+                                         selection.method = "first.minimum", lag.max = 10, do.plot = FALSE)),
+                error = function(e) NA
+              )
               
-              if (!is.na(e)) {
-                res_array["E_opt", col, p] <- e
+              # FALLBACK
+              # if (is.na(tau)) tau <- 1 
+              
+              if (!is.na(tau)) {
+                mid <- floor(N / 2)
+                lib <- c(1, mid)
+                pred <- c(mid + 1, N)
                 
-                ## --- S-map nonlinearity test ---
-                thetas <- seq(0, 8, by = 0.5)
-                rho_theta <- rep(NA, length(thetas))
-                
-                for (k in seq_along(thetas)) {
-                  sm <- tryCatch(
-                    suppressWarnings(
-                      SMap(
+                # maximum embed dimension to test depends on data length
+                maxE_lib <- floor((length(1:mid) - (Tp-1))/tau)     
+                maxE_pred <- floor((length((mid+1):N) - (Tp-1))/tau)
+                maxE_possible <- min(10, maxE_lib, maxE_pred)
+
+                e <- tryCatch({
+                  emb_out <- suppressWarnings(EmbedDimension(
+                    dataFrame = as.data.frame(ts),
+                    lib = lib,
+                    pred = pred,
+                    maxE = maxE_possible,
+                    Tp = 1,
+                    tau = tau,
+                    columns = 'ts',
+                    target = 'ts',
+                    noTime = TRUE,
+                    showPlot = FALSE
+                  ))
+                  emb_out$E[which.max(emb_out$rho)]
+                }, error = function(e) NA)
+
+                print(e)
+                if (!is.na(e)) {
+                  res_person["E_opt", col] <- e
+
+                  thetas <- seq(0, 8, by = 0.5)
+                  rho_theta <- rep(NA, length(thetas))
+
+                  for (k in seq_along(thetas)) {
+                    sm <- tryCatch(
+                      suppressWarnings(SMap(
                         dataFrame = as.data.frame(ts),
                         lib = lib,
                         pred = pred,
@@ -790,74 +817,167 @@ for (source_name in names(data_sources)) {
                         tau = tau,
                         Tp = 1,
                         theta = thetas[k],
-                        noTime = TRUE,
-                        silent = TRUE
-                      )
-                    ),
-                    error = function(e) NULL
-                  )
-                  
-                  if (!is.null(sm)) {
-                    rho_theta[k] <- sm$rho
+                        noTime = TRUE
+                      )),
+                      error = function(e) NULL
+                    )
+                    
+                    if (!is.null(sm)) {
+                      sm.obs <- sm$predictions$Observations
+                      sm.pred <- sm$predictions$Predictions
+                      valid <- is.finite(sm.obs) & is.finite(sm.pred)
+                      
+                      rho <- cor(sm.obs[valid], sm.pred[valid])
+                      rho_theta[k] <- rho
+                    }
                   }
-                }
-                
-                if (any(!is.na(rho_theta))) {
-                  res_array["rho_theta0", col, p] <- rho_theta[thetas == 0]
-                  res_array["rho_theta_opt", col, p] <- max(rho_theta, na.rm = TRUE)
-                  res_array["theta_opt", col, p] <- thetas[which.max(rho_theta)]
-                  res_array["delta_rho", col, p] <- 
-                    res_array["rho_theta_opt", col, p] - 
-                    res_array["rho_theta0", col, p]
-                }
-                
-                pi <- tryCatch(suppressWarnings(
-                  PredictInterval(dataFrame = as.data.frame(ts), noTime = TRUE, columns = "ts", target = "ts", 
-                                  E = e, tau = tau, lib = lib, pred = pred, maxTp = 20, showPlot = FALSE)
-                ), error = function(e) NULL)
-                
-                if (!is.null(pi) && nrow(pi) >= 5) {
-                  decay <- tryCatch({
-                    fit <- lm(rho ~ Tp, data = pi[1:5,])
-                    coef(fit)[2] * 5
-                  }, error = function(e) NA)
-                  res_array["pred_decay", col, p] <- decay
+
+                  if (any(!is.na(rho_theta))) {
+                    res_person["rho_theta0", col] <- rho_theta[thetas == 0]
+                    res_person["rho_theta_opt", col] <- max(rho_theta, na.rm = TRUE)
+                    res_person["theta_opt", col] <- thetas[which.max(rho_theta)]
+                    res_person["delta_rho", col] <- res_person["rho_theta_opt", col] - res_person["rho_theta0", col]
+                  }
+                  
+                  # maximum prediction horizon again depends on pred
+                  Tp_max <- N - min(pred) - 1
+                  Tp_max <- max(Tp_max, 1) 
+
+                  pi <- tryCatch(suppressWarnings(PredictInterval(
+                    dataFrame = as.data.frame(ts),
+                    noTime = TRUE,
+                    columns = "ts",
+                    target = "ts",
+                    E = e,
+                    tau = tau,
+                    lib = lib,
+                    pred = pred,
+                    maxTp = Tp_max,
+                    showPlot = FALSE
+                  )), error = function(e) NULL)
+
+                  if (!is.null(pi) && nrow(pi) >= 5) {
+                    decay <- tryCatch({
+                      fit <- lm(rho ~ Tp, data = pi[1:5, ])
+                      coef(fit)[2] * 5
+                    }, error = function(e) NA)
+                    res_person["pred_decay", col] <- decay
+                  }
                 }
               }
             }
             
-          } # end variable loop
-          
-          setTxtProgressBar(pb, p)
-        } # end person loop
-        
-        close(pb)
-        
-        # Aggregate across persons if needed
-        sig_rate <- apply(res_array, c(1,2), function(x) mean(x < ALPHA_LEVEL, na.rm=TRUE))
-        
-        results_list[[N_name]][[T_name]] <- list(
-          raw_array = res_array,
-          sig_rate = sig_rate,
-          tv_edf = res_df
+            res_person
+          },
+          .options = furrr_options(seed = TRUE)
         )
         
-        cat("TV/CP/PACF DONE:", source_name, scale_name, N_name, T_name, "\n")
+        # for (p in seq_len(N_persons)) {
+        #   ts_data <- lik_data[[p]]
+        # 
+        #   for (col in cols) {
+        #     ts <- ts_data[[col]]
+        #     N <- length(ts)
+        # 
+        #     tau <- tryCatch(suppressWarnings(
+        #       timeLag(unlist(ts), technique = "ami", selection.method = "first.minimum", lag.max = 10, do.plot = FALSE)
+        #     ), error = function(e) NA)
+        # 
+        #     if (!is.na(tau)) {
+        #       mid <- floor(N / 2)
+        #       lib <- c(1, mid)
+        #       pred <- c(mid + 1, N)
+        # 
+        #       e <- tryCatch({
+        #         emb_out <- suppressWarnings(EmbedDimension(dataFrame = as.data.frame(ts), lib = lib, pred = pred, maxE = 10, Tp = 1, tau = tau, columns = "ts", target = "ts", noTime = TRUE, showPlot = FALSE))
+        #         emb_out$E[which.max(emb_out$rho)]
+        #       }, error = function(e) NA)
+        # 
+        #       if (!is.na(e)) {
+        #         res_array["E_opt", col, p] <- e
+        # 
+        #         ## --- S-map nonlinearity test ---
+        #         thetas <- seq(0, 8, by = 0.5)
+        #         rho_theta <- rep(NA, length(thetas))
+        # 
+        #         for (k in seq_along(thetas)) {
+        #           sm <- tryCatch(
+        #             suppressWarnings(
+        #               SMap(
+        #                 dataFrame = as.data.frame(ts),
+        #                 lib = lib,
+        #                 pred = pred,
+        #                 columns = "ts",
+        #                 target = "ts",
+        #                 E = e,
+        #                 tau = tau,
+        #                 Tp = 1,
+        #                 theta = thetas[k],
+        #                 noTime = TRUE,
+        #                 silent = TRUE
+        #               )
+        #             ),
+        #             error = function(e) NULL
+        #           )
+        # 
+        #           if (!is.null(sm)) {
+        #             rho_theta[k] <- sm$rho
+        #           }
+        #         }
+        # 
+        #         if (any(!is.na(rho_theta))) {
+        #           res_array["rho_theta0", col, p] <- rho_theta[thetas == 0]
+        #           res_array["rho_theta_opt", col, p] <- max(rho_theta, na.rm = TRUE)
+        #           res_array["theta_opt", col, p] <- thetas[which.max(rho_theta)]
+        #           res_array["delta_rho", col, p] <-
+        #             res_array["rho_theta_opt", col, p] -
+        #             res_array["rho_theta0", col, p]
+        #         }
+        # 
+        #         pi <- tryCatch(suppressWarnings(
+        #           PredictInterval(dataFrame = as.data.frame(ts), noTime = TRUE, columns = "ts", target = "ts",
+        #                           E = e, tau = tau, lib = lib, pred = pred, maxTp = 20, showPlot = FALSE)
+        #         ), error = function(e) NULL)
+        # 
+        #         if (!is.null(pi) && nrow(pi) >= 5) {
+        #           decay <- tryCatch({
+        #             fit <- lm(rho ~ Tp, data = pi[1:5,])
+        #             coef(fit)[2] * 5
+        #           }, error = function(e) NA)
+        #           res_array["pred_decay", col, p] <- decay
+        #         }
+        #       }
+        #     }
+        # 
+        #   } # end variable loop
+        # } # end person loop
+        
+        # Aggregate across persons if needed
+        # sig_rate <- apply(res_array, c(1,2), function(x) mean(x < ALPHA_LEVEL, na.rm=TRUE))
+        
+        results_list[[N_name]][[T_name]] <- res_array
+        
+        cat("EDM Tests DONE:", source_name, scale_name, N_name, T_name, "\n")
         
       } # end T loop
     } # end N loop
     
     # Assign results to proper output object
     if (scale_name == "1_7") {
-      if (source_name == "VAR") tv_cp_pacf_results_1_7.VAR <- results_list
-      if (source_name == "bistable") tv_cp_pacf_results_1_7.bistable <- results_list
+      if (source_name == "VAR") edm_results_1_7.VAR <- results_list
+      if (source_name == "bistable") edm_results_1_7.bistable <- results_list
     } else if (scale_name == "1_100") {
-      if (source_name == "VAR") tv_cp_pacf_results_1_100.VAR <- results_list
-      if (source_name == "bistable") tv_cp_pacf_results_1_100.bistable <- results_list
+      if (source_name == "VAR") edm_results_1_100.VAR <- results_list
+      if (source_name == "bistable") edm_results_1_100.bistable <- results_list
     }
     
   } # end scale loop
 } # end data source loop
+
+save(edm_results_1_100.VAR, 
+     edm_results_1_100.bistable,
+     file = "EDM_test_results.RData")
+
 
 ### 5 --- AGGREGATE RESULTS --- ###
 
