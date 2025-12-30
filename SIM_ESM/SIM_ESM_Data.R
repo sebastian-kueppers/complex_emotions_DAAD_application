@@ -515,7 +515,7 @@ run_mf_for_person <- function(ts_data, cols) {
 }
 
 
-set.seed(2310)
+# set.seed(2310)
 
 for (source_name in names(data_sources)) {
   
@@ -576,11 +576,19 @@ for (source_name in names(data_sources)) {
         )
         
         # ---- PARALLEL EXECUTION ----
-        person_results <- future_lapply(
+        # person_results <- future_lapply(
+        #   lik_data,
+        #   run_mf_for_person,
+        #   cols = cols,
+        #   future.seed = TRUE
+        # )
+        person_results <- future_map(
           lik_data,
-          run_mf_for_person,
-          cols = cols,
-          future.seed = TRUE
+          ~ run_mf_for_person(
+            ts_data = .x,
+            cols = cols
+          ),
+          .options = furrr_options(seed = TRUE)  # preserves reproducibility
         )
         
         # Combine into matrix: vars × persons
