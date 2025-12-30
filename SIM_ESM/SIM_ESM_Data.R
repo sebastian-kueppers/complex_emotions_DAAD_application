@@ -25,8 +25,9 @@ library(rEDM)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(future)
-library(future.apply)
+# library(future)
+# library(future.apply)
+library(furrr)
 
 # set up parallelization
 n_cores <- parallel::detectCores() - 1
@@ -285,24 +286,29 @@ run_tests_for_person <- function(ts_data, cols, significance_tests_main, ALPHA_L
     ts  <- ts_data[[col]]
     
     # --- Bartels ---
-    res_mat["Bartels", col] <-
-      tryCatch(bartels.rank.test(ts)$p.value, error = function(e) NA)
-    
+    bartels_p <- tryCatch(bartels.rank.test(ts)$p.value, error = function(e) NA)
+    if (length(bartels_p) == 0) bartels_p <- NA
+    res_mat["Bartels", col] <- bartels_p
+
     # --- KPSS level ---
-    res_mat["KPSS.level", col] <-
-      tryCatch(kpss.test(ts, null = "Level", lshort = TRUE)$p.value, error=function(e) NA)
-    
+    kpss_level_p <- tryCatch(kpss.test(ts, null = "Level", lshort = TRUE)$p.value, error=function(e) NA)
+    if (length(kpss_level_p) == 0) kpss_level_p <- NA
+    res_mat["KPSS.level", col] <- kpss_level_p
+
     # --- KPSS trend ---
-    res_mat["KPSS.trend", col] <-
-      tryCatch(kpss.test(ts, null = "Trend", lshort = TRUE)$p.value, error=function(e) NA)
-    
+    kpss_trend_p <- tryCatch(kpss.test(ts, null = "Trend", lshort = TRUE)$p.value, error=function(e) NA)
+    if (length(kpss_trend_p) == 0) kpss_trend_p <- NA
+    res_mat["KPSS.trend", col] <- kpss_trend_p
+
     # --- Keenan ---
-    res_mat["Keenan", col] <-
-      tryCatch(keenanTest(ts)$p.value, error=function(e) NA)
-    
+    keenan_p <- tryCatch(keenanTest(ts)$p.value, error=function(e) NA)
+    if (length(keenan_p) == 0) keenan_p <- NA
+    res_mat["Keenan", col] <- keenan_p
+
     # --- Tsay ---
-    res_mat["Tsay", col] <-
-      tryCatch(tsayTest(ts)$p.value, error=function(e) NA)
+    tsay_p <- tryCatch(tsayTest(ts)$p.value, error=function(e) NA)
+    if (length(tsay_p) == 0) tsay_p <- NA
+    res_mat["Tsay", col] <- tsay_p
     
     # --- TV-AR GAM ---
     N_ts <- length(ts)
@@ -365,12 +371,15 @@ for (source_name in names(data_sources)) {
         
         # Loop over persons
         
-        person_results <- future_lapply(
+        person_results <- future_map(
           lik_data,
-          run_tests_for_person,
-          cols = cols,
-          significance_tests_main = significance_tests_main,
-          ALPHA_LEVEL = ALPHA_LEVEL
+          ~ run_tests_for_person(
+            ts_data = .x,
+            cols = cols,
+            significance_tests_main = significance_tests_main,
+            ALPHA_LEVEL = ALPHA_LEVEL
+          ),
+          .options = furrr_options(seed = TRUE)
         )
         
         for (p in seq_len(N_persons)) {
