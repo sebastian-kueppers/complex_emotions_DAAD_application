@@ -760,7 +760,7 @@ for (source_name in names(data_sources)) {
             
             for (col in cols) {
               ts <- ts_data[[col]]
-              print(ts)
+              # print(ts)
               N <- length(ts)
               
               tau <- tryCatch(
@@ -778,6 +778,7 @@ for (source_name in names(data_sources)) {
                 pred <- c(mid + 1, N)
                 
                 # maximum embed dimension to test depends on data length
+                Tp <- 1
                 maxE_lib <- floor((length(1:mid) - (Tp-1))/tau)     
                 maxE_pred <- floor((length((mid+1):N) - (Tp-1))/tau)
                 maxE_possible <- min(10, maxE_lib, maxE_pred)
@@ -798,7 +799,7 @@ for (source_name in names(data_sources)) {
                   emb_out$E[which.max(emb_out$rho)]
                 }, error = function(e) NA)
 
-                print(e)
+                # print(e)
                 if (!is.na(e)) {
                   res_person["E_opt", col] <- e
 
@@ -955,7 +956,7 @@ for (source_name in names(data_sources)) {
         # Aggregate across persons if needed
         # sig_rate <- apply(res_array, c(1,2), function(x) mean(x < ALPHA_LEVEL, na.rm=TRUE))
         
-        results_list[[N_name]][[T_name]] <- res_array
+        results_list[[N_name]][[T_name]] <- person_results
         
         cat("EDM Tests DONE:", source_name, scale_name, N_name, T_name, "\n")
         
