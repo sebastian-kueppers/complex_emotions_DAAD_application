@@ -499,19 +499,6 @@ for (source_name in names(data_sources)) {
         
         cols <- colnames(lik_data[[1]])
         
-        # TEST_MODE <- TRUE   # <<< switch this later
-        # 
-        # if (TEST_MODE) {
-        #   lik_data <- lik_data[seq_len(min(2, length(lik_data)))]
-        #   lik_data <- lapply(lik_data, function(df) df[, 1, drop = FALSE])
-        #   cols <- colnames(lik_data[[1]])
-        #   N_persons <- length(lik_data)
-        #   
-        #   cat("⚠️ MF TEST MODE:",
-        #       "persons =", N_persons,
-        #       "| vars =", length(cols), "\n")
-        # }
-        
         # Raw p-values matrix: Variables × Persons
         mf_array <- matrix(
           NA,
@@ -548,26 +535,6 @@ for (source_name in names(data_sources)) {
         mf_array <- do.call(cbind, person_results)
         colnames(mf_array) <- paste0("P", seq_len(ncol(mf_array)))
         rownames(mf_array) <- cols
-        
-        # cat(
-        #   "\nMF:", source_name,
-        #   "| scale:", scale_name,
-        #   "|", N_name,
-        #   "|", T_name,
-        #   "| persons:", N_persons, "\n"
-        # )
-        # pb <- txtProgressBar(min = 0, max = N_persons, style = 3)
-        # 
-        # for (p in seq_len(N_persons)) {
-        #   ts_data <- lik_data[[p]]
-        #   
-        #   for (col in cols) {
-        #     mf_array[col, p] <- multifractality_pval(ts_data[[col]])
-        #   }
-        #   
-        #   setTxtProgressBar(pb, p)
-        # }
-        # close(pb)
         
         # Aggregate across persons
         mf_sig_rate <- apply(mf_array, 1, function(x) mean(x < ALPHA_LEVEL, na.rm = TRUE))
@@ -650,7 +617,7 @@ run_tv_cp_pacf_for_person <- function(ts_data, cols, ALPHA_LEVEL) {
       thresh <- 2 / sqrt(N_ts)
       sig_lags <- which(abs(pacf_vals) > thresh)
       res["PAFC.n", col] <- length(sig_lags)
-      res["PAFC.max_lag", col] <- if(length(sig_lags) > 0) max(sig_lags) else NA
+      res["PAFC.max_lag", col] <- if(length(sig_lags) > 0) max(sig_lags) else 0
     }
   }
   
@@ -873,88 +840,8 @@ for (source_name in names(data_sources)) {
           .options = furrr_options(seed = TRUE)
         )
         
-        # for (p in seq_len(N_persons)) {
-        #   ts_data <- lik_data[[p]]
-        # 
-        #   for (col in cols) {
-        #     ts <- ts_data[[col]]
-        #     N <- length(ts)
-        # 
-        #     tau <- tryCatch(suppressWarnings(
-        #       timeLag(unlist(ts), technique = "ami", selection.method = "first.minimum", lag.max = 10, do.plot = FALSE)
-        #     ), error = function(e) NA)
-        # 
-        #     if (!is.na(tau)) {
-        #       mid <- floor(N / 2)
-        #       lib <- c(1, mid)
-        #       pred <- c(mid + 1, N)
-        # 
-        #       e <- tryCatch({
-        #         emb_out <- suppressWarnings(EmbedDimension(dataFrame = as.data.frame(ts), lib = lib, pred = pred, maxE = 10, Tp = 1, tau = tau, columns = "ts", target = "ts", noTime = TRUE, showPlot = FALSE))
-        #         emb_out$E[which.max(emb_out$rho)]
-        #       }, error = function(e) NA)
-        # 
-        #       if (!is.na(e)) {
-        #         res_array["E_opt", col, p] <- e
-        # 
-        #         ## --- S-map nonlinearity test ---
-        #         thetas <- seq(0, 8, by = 0.5)
-        #         rho_theta <- rep(NA, length(thetas))
-        # 
-        #         for (k in seq_along(thetas)) {
-        #           sm <- tryCatch(
-        #             suppressWarnings(
-        #               SMap(
-        #                 dataFrame = as.data.frame(ts),
-        #                 lib = lib,
-        #                 pred = pred,
-        #                 columns = "ts",
-        #                 target = "ts",
-        #                 E = e,
-        #                 tau = tau,
-        #                 Tp = 1,
-        #                 theta = thetas[k],
-        #                 noTime = TRUE,
-        #                 silent = TRUE
-        #               )
-        #             ),
-        #             error = function(e) NULL
-        #           )
-        # 
-        #           if (!is.null(sm)) {
-        #             rho_theta[k] <- sm$rho
-        #           }
-        #         }
-        # 
-        #         if (any(!is.na(rho_theta))) {
-        #           res_array["rho_theta0", col, p] <- rho_theta[thetas == 0]
-        #           res_array["rho_theta_opt", col, p] <- max(rho_theta, na.rm = TRUE)
-        #           res_array["theta_opt", col, p] <- thetas[which.max(rho_theta)]
-        #           res_array["delta_rho", col, p] <-
-        #             res_array["rho_theta_opt", col, p] -
-        #             res_array["rho_theta0", col, p]
-        #         }
-        # 
-        #         pi <- tryCatch(suppressWarnings(
-        #           PredictInterval(dataFrame = as.data.frame(ts), noTime = TRUE, columns = "ts", target = "ts",
-        #                           E = e, tau = tau, lib = lib, pred = pred, maxTp = 20, showPlot = FALSE)
-        #         ), error = function(e) NULL)
-        # 
-        #         if (!is.null(pi) && nrow(pi) >= 5) {
-        #           decay <- tryCatch({
-        #             fit <- lm(rho ~ Tp, data = pi[1:5,])
-        #             coef(fit)[2] * 5
-        #           }, error = function(e) NA)
-        #           res_array["pred_decay", col, p] <- decay
-        #         }
-        #       }
-        #     }
-        # 
-        #   } # end variable loop
-        # } # end person loop
         
         # Aggregate across persons if needed
-        # sig_rate <- apply(res_array, c(1,2), function(x) mean(x < ALPHA_LEVEL, na.rm=TRUE))
         
         results_list[[N_name]][[T_name]] <- person_results
         
@@ -980,77 +867,314 @@ save(edm_results_1_100.VAR,
      file = "EDM_test_results.RData")
 
 
+### 5 --- POWERPOINT ---------- ###
+
+# plot time series for illustrative purposes
+ts.VAR <- ts(data_list.VAR$N100$T100$likert_1_100[[1]]$V1_lik100)
+ts.bistable <- ts(data_list.bistable$N100$T100$likert_1_100[[1]]$V1_lik100)
+
+plot(ts.VAR, col = "red")
+plot(ts.bistable, col = "blue")
+
+
+
 ### 5 --- AGGREGATE RESULTS --- ###
 
-# Initialize a list to store aggregated results
-agg_list <- list()
+### 5.X EDM -------------------- ###
 
-# Loop over scales: 1-7 and 1-100
-for (scale_name in c("1_7", "1_100")) {
+# bistable and VAR lists
+lst_bi  <- edm_results_1_100.bistable$N100$T200
+lst_var <- edm_results_1_100.VAR$N100$T200
+
+# extract all theta_opt values
+theta_bi <- unlist(lapply(lst_bi, function(df) df["theta_opt", ]))
+theta_var <- unlist(lapply(lst_var, function(df) df["theta_opt", ]))
+
+# remove NA
+theta_bi  <- theta_bi[!is.na(theta_bi)]
+theta_var <- theta_var[!is.na(theta_var)]
+
+summary(theta_bi)
+summary(theta_var)
+
+quantile(theta_bi, probs = c(.25, .5, .75))
+quantile(theta_var, probs = c(.25, .5, .75))
+
+mean(theta_bi == 0)
+mean(theta_var == 0)
+
+
+
+lst.VAR <- edm_results_1_100.VAR$N100$T200
+
+# get row names (assumed identical across datasets)
+rows <- rownames(lst.VAR[[1]])
+
+# compute mean per row across all datasets and columns
+row_means <- sapply(rows, function(r) {
+  vals <- unlist(lapply(lst.VAR, function(df) df[r, ]))
+  mean(vals, na.rm = TRUE)
+})
+
+# convert to data frame for readability
+result.VAR <- data.frame(
+  row = names(row_means),
+  mean_value = row_means,
+  row.names = NULL
+)
+
+result.VAR
+
+
+
+lst.bistable <- edm_results_1_100.bistable$N100$T200
+
+# get row names (assumed identical across datasets)
+rows <- rownames(lst.bistable[[1]])
+
+# compute mean per row across all datasets and columns
+row_means <- sapply(rows, function(r) {
+  vals <- unlist(lapply(lst.bistable, function(df) df[r, ]))
+  mean(vals, na.rm = TRUE)
+})
+
+# convert to data frame for readability
+result.bistable <- data.frame(
+  row = names(row_means),
+  mean_value = row_means,
+  row.names = NULL
+)
+
+result.bistable
+
+
+### --- AGGREGATE RESULTS ------ ###
+
+### --- SIGNIFICANCE TESTS --- ###
+
+# Initialize a list to store aggregated results
+agg_list.VAR <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(sig_test_results_1_100.VAR)) {
   
-  # Select the corresponding results list
-  results_scale <- if (scale_name == "1_7") test_results_1_7 else test_results_1_100
-  
-  # Loop over sample sizes (N)
-  for (N_name in names(results_scale)) {
+  # Loop over time series lengths (T)
+  for (T_name in names(sig_test_results_1_100.VAR[[N_name]])) {
     
-    # Loop over time series lengths (T)
-    for (T_name in names(results_scale[[N_name]])) {
-      
-      res_array <- results_scale[[N_name]][[T_name]]$raw_array  # get raw p-values array
-      
-      # Initialize vector to store proportion of significant p-values per test
-      ratio_sig <- numeric(dim(res_array)[1])
-      names(ratio_sig) <- dimnames(res_array)[[1]]
-      
-      # Aggregate over all variables × persons
-      for (test_name in dimnames(res_array)[[1]]) {
-        vals <- as.vector(res_array[test_name,,])  # flatten variable × person values
-        ratio_sig[test_name] <- mean(vals < ALPHA_LEVEL, na.rm = TRUE)  # ratio (0-1)
-      }
-      
-      # Store as a data frame
-      agg_list[[paste0(scale_name, "_", N_name, "_", T_name)]] <- data.frame(
-        Test = names(ratio_sig),
-        Likert = scale_name,
-        N = N_name,
-        T = T_name,
-        ratioSig = ratio_sig,  # ratio is the last column
-        row.names = NULL
-      )
-      
-    } # end T loop
-  } # end N loop
-} # end scale loop
+    res_array <- sig_test_results_1_100.VAR[[N_name]][[T_name]]$raw_array  # get raw p-values array
+
+    # Initialize vector to store proportion of significant p-values per test
+    ratio_sig <- numeric(dim(res_array)[1])
+    names(ratio_sig) <- dimnames(res_array)[[1]]
+
+    # Aggregate over all variables × persons
+    for (test_name in dimnames(res_array)[[1]]) {
+      vals <- as.vector(res_array[test_name,,])  # flatten variable × person values
+      ratio_sig[test_name] <- mean(vals < ALPHA_LEVEL, na.rm = TRUE)  # ratio (0-1)
+    }
+
+    # Store as a data frame
+    agg_list.VAR[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(ratio_sig),
+      model = "VAR",
+      N = N_name,
+      T = T_name,
+      ratioSig = ratio_sig,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
 
 # Combine all data frames into one tidy data frame
-agg_df <- bind_rows(agg_list)
+agg_df.VAR <- bind_rows(agg_list.VAR)
 
-# SHow significance_tests of agg_df
-agg_df[agg_df$Test %in% significance_tests,]
 
+# Initialize a list to store aggregated results
+agg_list.bistable <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(sig_test_results_1_100.bistable)) {
+  
+  # Loop over time series lengths (T)
+  for (T_name in names(sig_test_results_1_100.bistable[[N_name]])) {
+    
+    res_array <- sig_test_results_1_100.bistable[[N_name]][[T_name]]$raw_array  # get raw p-values array
+    
+    # Initialize vector to store proportion of significant p-values per test
+    ratio_sig <- numeric(dim(res_array)[1])
+    names(ratio_sig) <- dimnames(res_array)[[1]]
+    
+    # Aggregate over all variables × persons
+    for (test_name in dimnames(res_array)[[1]]) {
+      vals <- as.vector(res_array[test_name,,])  # flatten variable × person values
+      ratio_sig[test_name] <- mean(vals < ALPHA_LEVEL, na.rm = TRUE)  # ratio (0-1)
+    }
+    
+    # Store as a data frame
+    agg_list.bistable[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(ratio_sig),
+      model = "bistable",
+      N = N_name,
+      T = T_name,
+      ratioSig = ratio_sig,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
+
+# Combine all data frames into one tidy data frame
+agg_df.bistable <- bind_rows(agg_list.bistable)
+
+
+# Combine into a single df for significance tests
+agg_df.sig <- rbind(agg_df.VAR,
+                    agg_df.bistable)
+
+### --- OTHER PARAMETRIC TESTS --- ###
+
+# Initialize a list to store aggregated results
+agg_list.VAR.other <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(tv_cp_pacf_results_1_100.VAR)) {
+  
+  # Loop over time series lengths (T)
+  for (T_name in names(tv_cp_pacf_results_1_100.VAR[[N_name]])) {
+    
+    res_array <- tv_cp_pacf_results_1_100.VAR[[N_name]][[T_name]]  
+    res_mean <- apply(res_array, 1, mean, na.rm = TRUE)
+    
+    # Store as a data frame
+    agg_list.VAR.other[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(res_mean),
+      model = "VAR",
+      N = N_name,
+      T = T_name,
+      value = res_mean,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
+
+# Combine all data frames into one tidy data frame
+agg_df.VAR.other <- bind_rows(agg_list.VAR.other)
+
+
+# Initialize a list to store aggregated results
+agg_list.bistable.other <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(tv_cp_pacf_results_1_100.bistable)) {
+  
+  # Loop over time series lengths (T)
+  for (T_name in names(tv_cp_pacf_results_1_100.bistable[[N_name]])) {
+    
+    res_array <- tv_cp_pacf_results_1_100.bistable[[N_name]][[T_name]]  
+    res_mean <- apply(res_array, 1, mean, na.rm = TRUE)
+    
+    # Store as a data frame
+    agg_list.bistable.other[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(res_mean),
+      model = "bistable",
+      N = N_name,
+      T = T_name,
+      value = res_mean,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
+
+# Combine all data frames into one tidy data frame
+agg_df.bistable.other <- bind_rows(agg_list.bistable.other)
+
+# Combine both dfs together
+agg_df.other <- rbind(agg_df.VAR.other,
+                      agg_df.bistable.other)
+
+
+### --- EDM TESTS --- ###
+
+# Initialize a list to store aggregated results
+agg_list.VAR.EDM <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(edm_results_1_100.VAR)) {
+  
+  # Loop over time series lengths (T)
+  for (T_name in names(edm_results_1_100.VAR[[N_name]])) {
+    
+    res_array <- simplify2array(edm_results_1_100.VAR[[N_name]][[T_name]])  
+    res_mean <- apply(res_array, 1, mean, na.rm = TRUE)
+    
+    # Store as a data frame
+    agg_list.VAR.EDM[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(res_mean),
+      nodel = "VAR",
+      N = N_name,
+      T = T_name,
+      value = res_mean,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
+
+# Combine all data frames into one tidy data frame
+agg_df.VAR.EDM <- bind_rows(agg_list.VAR.EDM)
+
+
+# Initialize a list to store aggregated results
+agg_list.bistable.EDM <- list()
+
+# Loop over sample sizes (N)
+for (N_name in names(edm_results_1_100.bistable)) {
+  
+  # Loop over time series lengths (T)
+  for (T_name in names(edm_results_1_100.bistable[[N_name]])) {
+    
+    res_array <- simplify2array(edm_results_1_100.bistable[[N_name]][[T_name]])  
+    res_mean <- apply(res_array, 1, mean, na.rm = TRUE)
+    
+    # Store as a data frame
+    agg_list.bistable.EDM[[paste0(N_name, "_", T_name)]] <- data.frame(
+      Test = names(res_mean),
+      model = "bistable",
+      N = N_name,
+      T = T_name,
+      value = res_mean,  # ratio is the last column
+      row.names = NULL
+    )
+    
+  } # end T loop
+} # end N loop
+
+# Combine all data frames into one tidy data frame
+agg_df.bistable.EDM <- bind_rows(agg_list.bistable.EDM)
 
 ### 6 --- PLOT --- ###
-plot_data.N200.1_100 <- agg_df %>%
+
+### 6.1 --- SIGNIFICANCE TESTS ---
+
+plot_data.VAR <- agg_df.sig %>%
   filter(
-    N == "N200",
-    Likert == "1_100",
-    Test %in% significance_tests,
-    Test != "multifractality"      # ← remove multifractality
+    N == "N100",
+    model == "VAR"
   ) %>%
   mutate(T = factor(T, levels = paste0("T", sort(T_list))))
 
-plot_data.N200.1_7 <- agg_df %>%
+plot_data.bistable <- agg_df.sig %>%
   filter(
-    N == "N200",
-    Likert == "1_7",
-    Test %in% significance_tests,
-    Test != "multifractality"      # ← remove multifractality
+    N == "N100",
+    model == "bistable"    
   ) %>%
   mutate(T = factor(T, levels = paste0("T", sort(T_list))))
 
 # Create the line plot
-ggplot(plot_data.N200.1_100, aes(x = T, y = ratioSig, color = Test, group = Test)) +
+ggplot(plot_data.VAR, aes(x = T, y = ratioSig, color = Test, group = Test)) +
   geom_line(size = 1) +             # lines for each Test
   geom_point(size = 2) +            # points at each T
   labs(
@@ -1067,7 +1191,7 @@ ggplot(plot_data.N200.1_100, aes(x = T, y = ratioSig, color = Test, group = Test
   )
 
 # Create the line plot
-ggplot(plot_data.N200.1_7, aes(x = T, y = ratioSig, color = Test, group = Test)) +
+ggplot(plot_data.bistable, aes(x = T, y = ratioSig, color = Test, group = Test)) +
   geom_line(size = 1) +             # lines for each Test
   geom_point(size = 2) +            # points at each T
   labs(
@@ -1083,6 +1207,215 @@ ggplot(plot_data.N200.1_7, aes(x = T, y = ratioSig, color = Test, group = Test))
     axis.title.y = element_blank()
   )
 
+
+
+### 6.1 --- OTHER PARAMETRIC TESTS ---
+
+plot_data.other <- agg_df.other %>%
+  filter(N == "N100") %>%
+  mutate(
+    T = factor(T, levels = paste0("T", sort(T_list))),
+    model = factor(model, levels = c("VAR", "bistable"))
+  )
+
+test_colors <- c("TV-AR.EDF" = "steelblue",
+                 "PAFC.n" = "darkgreen",
+                 "PAFC.max_lag" = "orange",
+                 "CP.n" = "purple")
+
+# TV-AR.EDF plot
+ggplot(
+  filter(plot_data.other, Test == "TV-AR.EDF"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(1, NA)) +   
+  labs(
+    title = "TV-AR.EDF",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) + 
+  guides(color = "none")
+
+# PAFC.n
+ggplot(
+  filter(plot_data.other, Test == "PAFC.n"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "PAFC.n",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) + 
+  guides(color = "none")
+
+# PAFC.n
+ggplot(
+  filter(plot_data.other, Test == "PAFC.n"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "PAFC.n",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) + 
+  guides(color = "none")
+
+# PAFC.max_lag
+ggplot(
+  filter(plot_data.other, Test == "PAFC.max_lag"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "PAFC.max_lag",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) + 
+  guides(color = "none")
+
+# CP.n
+ggplot(
+  filter(plot_data.other, Test == "CP.n"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "CP.n",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) + 
+  guides(color = "none")
+
+### 6.3 --- EDM TESTS ---
+
+plot_data.VAR.EDM <- agg_df.VAR.EDM %>%
+  filter(
+    N == "N100",
+  ) %>%
+  mutate(T = factor(T, levels = paste0("T", sort(T_list))))
+
+plot_data.bistable.EDM <- agg_df.bistable.EDM %>%
+  filter(
+    N == "N100",
+  ) %>%
+  mutate(T = factor(T, levels = paste0("T", sort(T_list))))
+
+test_colors <- c("E_opt" = "steelblue",
+                 "pred_decay" = "darkgreen",
+                 "rho_theta0" = "orange",
+                 "rho_theta_opt" = "purple",
+                 "theta_opt" = "red",
+                 "delta_rho" = "darkblue")
+
+# Line plot connecting points over T, one panel per Test
+ggplot(plot_data.VAR.EDM, aes(x = T, y = value, group = 1)) +
+  geom_line(aes(color = Test), size = 1.2) +   # color per panel
+  geom_point(aes(color = Test), size = 2) +    # points with same color
+  facet_wrap(~Test, ncol = 1, scales = "free_y") +  # stack vertically
+  scale_color_manual(values = test_colors) +       # assign specific colors
+  labs(x = "T (time series length)", y = "Value") +
+  theme_minimal(base_size = 14) +
+  theme(strip.text = element_text(face = "bold"),
+        panel.spacing = unit(1, "lines"),
+        legend.position = "none",
+        panel.grid.major = element_line(color = "gray80", linetype = "dashed"),  # major grid
+        panel.grid.minor = element_line(color = "gray90", linetype = "dotted"))  # hide legend since color is obvious per panel
+
+# Line plot connecting points over T, one panel per Test
+ggplot(plot_data.bistable.EDM, aes(x = T, y = value, group = 1)) +
+  geom_line(aes(color = Test), size = 1.2) +   # color per panel
+  geom_point(aes(color = Test), size = 2) +    # points with same color
+  facet_wrap(~Test, ncol = 1, scales = "free_y") +  # stack vertically
+  scale_color_manual(values = test_colors) +       # assign specific colors
+  labs(x = "T (time series length)", y = "Value") +
+  theme_minimal(base_size = 14) +
+  theme(strip.text = element_text(face = "bold"),
+        panel.spacing = unit(1, "lines"),
+        legend.position = "none",
+        panel.grid.major = element_line(color = "gray80", linetype = "dashed"),  # major grid
+        panel.grid.minor = element_line(color = "gray90", linetype = "dotted"))  # hide legend since color is obvious per panel
 
 # 7 --- SOME MORE DESCRIPTIVES ---
 
