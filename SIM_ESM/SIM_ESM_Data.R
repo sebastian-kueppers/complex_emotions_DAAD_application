@@ -685,7 +685,7 @@ for (source_name in names(data_sources)) {
 
 save(tv_cp_pacf_results_1_100.VAR,
      tv_cp_pacf_results_1_100.bistable,
-     file = "non-sig_test_results.RData")
+     file = "other_test_results.RData")
 
 ### 4.4 - EDM TESTS - ###
 
@@ -770,7 +770,7 @@ for (source_name in names(data_sources)) {
                 if (!is.na(e)) {
                   res_person["E_opt", col] <- e
 
-                  thetas <- seq(0, 8, by = 0.5)
+                  thetas <- seq(0, 8, by = 0.1)
                   rho_theta <- rep(NA, length(thetas))
 
                   for (k in seq_along(thetas)) {
