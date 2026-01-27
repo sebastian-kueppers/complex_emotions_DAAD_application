@@ -704,6 +704,10 @@ for (source_name in names(data_sources)) {
       for (T_name in names(data_list[[N_name]])) {
         
         lik_data <- data_list[[N_name]][[T_name]][[scales[[scale_name]]]]
+        
+        # TESTING
+        lik_data <- lik_data[1:2]
+        
         N_persons <- length(lik_data)
         if (N_persons == 0) next
         
@@ -770,8 +774,9 @@ for (source_name in names(data_sources)) {
                 if (!is.na(e)) {
                   res_person["E_opt", col] <- e
 
-                  thetas <- seq(0, 8, by = 0.1)
+                  thetas <- seq(0, 3, by = 0.1)
                   rho_theta <- rep(NA, length(thetas))
+                  # e <- 1
 
                   for (k in seq_along(thetas)) {
                     sm <- tryCatch(
