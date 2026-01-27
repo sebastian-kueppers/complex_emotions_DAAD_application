@@ -705,9 +705,6 @@ for (source_name in names(data_sources)) {
         
         lik_data <- data_list[[N_name]][[T_name]][[scales[[scale_name]]]]
         
-        # TESTING
-        lik_data <- lik_data[1:2]
-        
         N_persons <- length(lik_data)
         if (N_persons == 0) next
         
@@ -869,7 +866,7 @@ for (source_name in names(data_sources)) {
 
 save(edm_results_1_100.VAR, 
      edm_results_1_100.bistable,
-     file = "EDM_test_results.RData")
+     file = "EDM_test_results_27-01.RData")
 
 
 ### 5 --- POWERPOINT ---------- ###
