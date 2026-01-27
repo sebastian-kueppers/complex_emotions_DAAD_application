@@ -1113,7 +1113,7 @@ for (N_name in names(edm_results_1_100.VAR)) {
     # Store as a data frame
     agg_list.VAR.EDM[[paste0(N_name, "_", T_name)]] <- data.frame(
       Test = names(res_mean),
-      nodel = "VAR",
+      model = "VAR",
       N = N_name,
       T = T_name,
       value = res_mean,  # ratio is the last column
@@ -1154,6 +1154,10 @@ for (N_name in names(edm_results_1_100.bistable)) {
 
 # Combine all data frames into one tidy data frame
 agg_df.bistable.EDM <- bind_rows(agg_list.bistable.EDM)
+
+# Combine into one df
+agg_df.EDM <- rbind(agg_df.VAR.EDM,
+                    agg_df.bistable.EDM)
 
 ### 6 --- PLOT --- ###
 
@@ -1370,17 +1374,12 @@ ggplot(
 
 ### 6.3 --- EDM TESTS ---
 
-plot_data.VAR.EDM <- agg_df.VAR.EDM %>%
-  filter(
-    N == "N100",
-  ) %>%
-  mutate(T = factor(T, levels = paste0("T", sort(T_list))))
-
-plot_data.bistable.EDM <- agg_df.bistable.EDM %>%
-  filter(
-    N == "N100",
-  ) %>%
-  mutate(T = factor(T, levels = paste0("T", sort(T_list))))
+plot_data.EDM <- agg_df.EDM %>%
+  filter(N == "N100") %>%
+  mutate(
+    T = factor(T, levels = paste0("T", sort(T_list))),
+    model = factor(model, levels = c("VAR", "bistable"))
+  )
 
 test_colors <- c("E_opt" = "steelblue",
                  "pred_decay" = "darkgreen",
@@ -1388,34 +1387,182 @@ test_colors <- c("E_opt" = "steelblue",
                  "rho_theta_opt" = "purple",
                  "theta_opt" = "red",
                  "delta_rho" = "darkblue")
-
-# Line plot connecting points over T, one panel per Test
-ggplot(plot_data.VAR.EDM, aes(x = T, y = value, group = 1)) +
-  geom_line(aes(color = Test), size = 1.2) +   # color per panel
-  geom_point(aes(color = Test), size = 2) +    # points with same color
-  facet_wrap(~Test, ncol = 1, scales = "free_y") +  # stack vertically
-  scale_color_manual(values = test_colors) +       # assign specific colors
-  labs(x = "T (time series length)", y = "Value") +
+# E_opt
+ggplot(
+  filter(plot_data.EDM, Test == "E_opt"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "E_opt",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
   theme_minimal(base_size = 14) +
-  theme(strip.text = element_text(face = "bold"),
-        panel.spacing = unit(1, "lines"),
-        legend.position = "none",
-        panel.grid.major = element_line(color = "gray80", linetype = "dashed"),  # major grid
-        panel.grid.minor = element_line(color = "gray90", linetype = "dotted"))  # hide legend since color is obvious per panel
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
 
-# Line plot connecting points over T, one panel per Test
-ggplot(plot_data.bistable.EDM, aes(x = T, y = value, group = 1)) +
-  geom_line(aes(color = Test), size = 1.2) +   # color per panel
-  geom_point(aes(color = Test), size = 2) +    # points with same color
-  facet_wrap(~Test, ncol = 1, scales = "free_y") +  # stack vertically
-  scale_color_manual(values = test_colors) +       # assign specific colors
-  labs(x = "T (time series length)", y = "Value") +
+# pred_decay
+ggplot(
+  filter(plot_data.EDM, Test == "pred_decay"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(NA, 0)) +   
+  labs(
+    title = "pred_decay",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
   theme_minimal(base_size = 14) +
-  theme(strip.text = element_text(face = "bold"),
-        panel.spacing = unit(1, "lines"),
-        legend.position = "none",
-        panel.grid.major = element_line(color = "gray80", linetype = "dashed"),  # major grid
-        panel.grid.minor = element_line(color = "gray90", linetype = "dotted"))  # hide legend since color is obvious per panel
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
+
+# rho_theta0
+ggplot(
+  filter(plot_data.EDM, Test == "rho_theta0"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "rho_theta0",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
+
+
+# rho_theta_opt
+ggplot(
+  filter(plot_data.EDM, Test == "rho_theta_opt"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "rho_theta_opt",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
+
+# theta_opt
+ggplot(
+  filter(plot_data.EDM, Test == "theta_opt"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "theta_opt",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
+
+# delta_rho
+ggplot(
+  filter(plot_data.EDM, Test == "delta_rho"),
+  aes(
+    x = T,
+    y = value,
+    group = model,
+    linetype = model
+  )
+) +
+  geom_line(aes(color = Test), size = 1.2) +
+  geom_point(aes(color = Test), size = 2) +
+  scale_color_manual(values = test_colors) +
+  scale_linetype_manual(values = c("VAR" = "solid", "bistable" = "dashed")) +
+  scale_y_continuous(limits = c(0, NA)) +   
+  labs(
+    title = "delta_rho",
+    x = "T (time series length)",
+    y = NULL,
+    linetype = "Model"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "gray90", linetype = "dotted")
+  ) +
+  guides(color = "none")
+
+
 
 # 7 --- SOME MORE DESCRIPTIVES ---
 
