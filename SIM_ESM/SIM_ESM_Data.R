@@ -118,208 +118,38 @@ data_list.VAR <- list()
 
 set.seed(2310)
 
-# for (N in N_list) {
-#   data_list.VAR[[paste0("N", N)]] <- list()
-#   
-#   for (T in T_list) {
-#     
-#     # --- Simulate raw VAR1 data for N subjects ---
-#     raw_data <- simulate_var_subjects(N = N, T = T, A = A, Sigma = Sigma)
-#     
-#     # --- Likert 1-7 scaling ---
-#     likert_1_7 <- lapply(raw_data, function(df) {
-#       df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 7))
-#       colnames(df_lik) <- paste0(colnames(df_lik), "_lik7")
-#       df_lik
-#     })
-#     
-#     # --- Likert 1-100 scaling ---
-#     likert_1_100 <- lapply(raw_data, function(df) {
-#       df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 100))
-#       colnames(df_lik) <- paste0(colnames(df_lik), "_lik100")
-#       df_lik
-#     })
-#     
-#     # --- Save to data_list.VAR ---
-#     data_list.VAR[[paste0("N", N)]][[paste0("T", T)]] <- list(
-#       raw = raw_data,
-#       likert_1_7 = likert_1_7,
-#       likert_1_100 = likert_1_100
-#     )
-#     
-#     cat("Simulated: N =", N, "T =", T, "\n")
-#   }
-# }
-
-# Simulate VARs for different Sigmas
 for (N in N_list) {
   data_list.VAR[[paste0("N", N)]] <- list()
-  
+
   for (T in T_list) {
-    
-    for (Sig in Sigmas) {
-      Sigma <- diag(4)
-      diag(Sigma) <- Sig
-      
-      # --- Simulate raw VAR1 data for N subjects ---
-      raw_data <- simulate_var_subjects(N = N, T = T, A = A, Sigma = Sigma)
-      
-      # --- Likert 1-7 scaling ---
-      likert_1_7 <- lapply(raw_data, function(df) {
-        df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 7))
-        colnames(df_lik) <- paste0(colnames(df_lik), "_lik7")
-        df_lik
-      })
-      
-      # --- Likert 1-100 scaling ---
-      likert_1_100 <- lapply(raw_data, function(df) {
-        df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 100))
-        colnames(df_lik) <- paste0(colnames(df_lik), "_lik100")
-        df_lik
-      })
-      
-      # --- Save to data_list.VAR ---
-      data_list.VAR[[paste0("N", N)]][[paste0("T", T)]][[paste0("Sigma", Sig)]] <- list(
-        raw = raw_data,
-        likert_1_7 = likert_1_7,
-        likert_1_100 = likert_1_100
-      )
-      
-      cat("Simulated: N =", N, "T =", T, "Sigma=", Sig, "\n")
-    }
+
+    # --- Simulate raw VAR1 data for N subjects ---
+    raw_data <- simulate_var_subjects(N = N, T = T, A = A, Sigma = Sigma)
+
+    # --- Likert 1-7 scaling ---
+    likert_1_7 <- lapply(raw_data, function(df) {
+      df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 7))
+      colnames(df_lik) <- paste0(colnames(df_lik), "_lik7")
+      df_lik
+    })
+
+    # --- Likert 1-100 scaling ---
+    likert_1_100 <- lapply(raw_data, function(df) {
+      df_lik <- as.data.frame(lapply(df, min_max_to_scale, new_min = 1, new_max = 100))
+      colnames(df_lik) <- paste0(colnames(df_lik), "_lik100")
+      df_lik
+    })
+
+    # --- Save to data_list.VAR ---
+    data_list.VAR[[paste0("N", N)]][[paste0("T", T)]] <- list(
+      raw = raw_data,
+      likert_1_7 = likert_1_7,
+      likert_1_100 = likert_1_100
+    )
+
+    cat("Simulated: N =", N, "T =", T, "\n")
   }
 }
-
-# plot examples for PPT
-
-# Sigma = 0.1
-data_01 <- as.data.frame(data_list.VAR$N100$T100$Sigma0.1$raw[[1]]) 
-ts_01 <- ts(data_01)
-plot(ts_01[,1], ylim = c(-4,4))
-
-data_01.lik  <- as.data.frame(data_list.VAR$N100$T100$Sigma0.1$likert_1_100[[1]]) 
-ts_01.lik <- ts(data_01.lik)
-plot(ts_01.lik[,1])
-
-# Sigma = 0.5
-data_05.lik <- as.data.frame(data_list.VAR$N100$T100$Sigma0.5$likert_1_100[[1]]) 
-ts_05.lik <- ts(data_05.lik)
-
-# Sigma = 1
-data_1 <- as.data.frame(data_list.VAR$N100$T100$Sigma1$raw[[1]]) 
-ts_1 <- ts(data_1)
-plot(ts_1[,1], ylim = c(-4,4))
-
-data_1.lik <- as.data.frame(data_list.VAR$N100$T100$Sigma1$likert_1_100[[1]]) 
-ts_1.lik <- ts(data_1.lik)
-plot(ts_1.lik[,1])
-
-# Sigma = 1.5
-data_15.lik <- as.data.frame(data_list.VAR$N100$T100$Sigma1.5$likert_1_100[[1]]) 
-ts_15.lik <- ts(data_15.lik)
-
-# Sigma = 2
-data_2 <- as.data.frame(data_list.VAR$N100$T100$Sigma2$raw[[1]]) 
-ts_2 <- ts(data_2)
-plot(ts_2[,1], ylim = c(-4,4))
-
-data_2.lik <- as.data.frame(data_list.VAR$N100$T100$Sigma2$likert_1_100[[1]]) 
-ts_2.lik <- ts(data_2.lik)
-plot(ts_2.lik[,1])
-
-# fit VARs
-R2_results <- list(
-  likert_1_100 = list(),
-  raw          = list()
-)
-
-set.seed(2310)
-for (s in Sigmas) {
-  
-  sigma_name <- paste0("Sigma", s)
-  cat("=== Starting Sigma:", sigma_name, "===\n")
-  
-  ## ---------- Likert data ----------
-  sim_list_likert <- data_list.VAR$N100$T100[[sigma_name]]$likert_1_100
-  
-  R2_mat_likert <- matrix(NA, nrow = 100, ncol = 4)
-  colnames(R2_mat_likert) <- c("V1", "V2", "V3", "V4")
-  
-  for (i in 1:100) {
-    cat("  [Likert] Sigma:", sigma_name, 
-        "- Simulation", i, "of 100\n")
-    
-    dat_i <- sim_list_likert[[i]]
-    
-    fit <- tryCatch(
-      VAR(dat_i, p = 1, type = "const"),
-      error = function(e) {
-        cat("    VAR failed (Likert) at", sigma_name, 
-            "simulation", i, "\n")
-        return(NULL)
-      }
-    )
-    
-    if (!is.null(fit)) {
-      R2_mat_likert[i, ] <- sapply(
-        summary(fit)$varresult,
-        function(x) x$r.squared
-      )
-    }
-  }
-  
-  R2_results$likert_1_100[[sigma_name]] <- R2_mat_likert
-  
-  ## ---------- Raw data ----------
-  sim_list_raw <- data_list.VAR$N100$T100[[sigma_name]]$raw
-  
-  R2_mat_raw <- matrix(NA, nrow = 100, ncol = 4)
-  colnames(R2_mat_raw) <- c("V1", "V2", "V3", "V4")
-  
-  for (i in 1:100) {
-    cat("  [Raw] Sigma:", sigma_name, 
-        "- Simulation", i, "of 100\n")
-    
-    dat_i <- sim_list_raw[[i]]
-    
-    fit <- tryCatch(
-      VAR(dat_i, p = 1, type = "const"),
-      error = function(e) {
-        cat("    VAR failed (Raw) at", sigma_name, 
-            "simulation", i, "\n")
-        return(NULL)
-      }
-    )
-    
-    if (!is.null(fit)) {
-      R2_mat_raw[i, ] <- sapply(
-        summary(fit)$varresult,
-        function(x) x$r.squared
-      )
-    }
-  }
-  
-  R2_results$raw[[sigma_name]] <- R2_mat_raw
-  
-  cat("=== Finished Sigma:", sigma_name, "===\n\n")
-}
-
-# col means for the different R^2
-# Likert 1-100
-mean(colMeans(R2_results$likert_1_100$Sigma0.1)) #0.2191631
-mean(colMeans(R2_results$likert_1_100$Sigma0.5)) #0.2103254
-mean(colMeans(R2_results$likert_1_100$Sigma1)) #0.2111197
-mean(colMeans(R2_results$likert_1_100$Sigma1.5)) #0.2065593
-mean(colMeans(R2_results$likert_1_100$Sigma2)) #0.2016264
-mean(colMeans(R2_results$likert_1_100$Sigma10)) #0.2016264
-
-# raw
-mean(colMeans(R2_results$raw$Sigma0.1)) #0.2191875
-mean(colMeans(R2_results$raw$Sigma0.5)) #0.2104989
-mean(colMeans(R2_results$raw$Sigma1)) #0.2113429
-mean(colMeans(R2_results$raw$Sigma1.5)) #0.2065931
-mean(colMeans(R2_results$raw$Sigma2)) #0.2017204
-
 
 ### 3.2 - BISTABLE COMPLEX MODEL - ###
 
