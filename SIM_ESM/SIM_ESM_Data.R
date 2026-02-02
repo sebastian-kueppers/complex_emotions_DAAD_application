@@ -863,7 +863,7 @@ for (source_name in names(data_sources)) {
 
 save(edm_results_1_100.VAR, 
      edm_results_1_100.bistable,
-     file = "EDM_test_results_27-01.RData")
+     file = "EDM_test_results_02-02.RData")
 
 
 ### 5 --- POWERPOINT ---------- ###
