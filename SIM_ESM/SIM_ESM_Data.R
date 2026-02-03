@@ -92,7 +92,7 @@ A <- matrix(c(
   -0.05, -0.05,  0.1,  0.4
 ), 4, 4, byrow = TRUE)
 
-Sigmas <- c(0.1,0.5,1,1.5,2)
+Sigma <- diag(1)
 
 # Parameter settings lead to model where approx. 31% of all variance is 
 # explained (check by fitting a VAR)
