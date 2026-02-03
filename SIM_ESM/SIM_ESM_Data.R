@@ -745,16 +745,13 @@ for (source_name in names(data_sources)) {
               
               # maximum embed dimension to test depends on data length
               Tp <- 1
-              maxE_lib <- floor((length(1:mid) - (Tp-1))/tau)     
-              maxE_pred <- floor((length((mid+1):N) - (Tp-1))/tau)
-              maxE_possible <- min(10, maxE_lib, maxE_pred)
 
               e <- tryCatch({
                 emb_out <- suppressWarnings(EmbedDimension(
                   dataFrame = as.data.frame(ts),
                   lib = lib,
                   pred = pred,
-                  maxE = maxE_possible,
+                  maxE = 15,
                   Tp = 1,
                   # tau = tau,
                   columns = 'ts',
@@ -769,7 +766,7 @@ for (source_name in names(data_sources)) {
               if (!is.na(e)) {
                 res_person["E_opt", col] <- e
 
-                thetas <- seq(0, 3, by = 0.1)
+                thetas <- seq(0, 8, by = 0.5)
                 rho_theta <- rep(NA, length(thetas))
                 # e <- 1
 
@@ -863,7 +860,7 @@ for (source_name in names(data_sources)) {
 
 save(edm_results_1_100.VAR, 
      edm_results_1_100.bistable,
-     file = "EDM_test_results_02-02.RData")
+     file = "EDM_test_results_02-03.RData")
 
 
 ### 5 --- POWERPOINT ---------- ###
