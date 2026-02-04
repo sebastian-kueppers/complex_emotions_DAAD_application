@@ -985,9 +985,16 @@ for (N in N_list.long) {
   }
 }
 
-save(data_list.VAR.long,
-     data_list.bistable.long,
-     file = "generated_data_lists_long.RData")
+DATA <- list(
+  VAR = data_list.VAR.long,
+  bistable = data_list.bistable.long
+)
+
+saveRDS(
+  DATA,
+  file = "generated_data_lists_long.rds",
+  compress = "xz"
+)
 
 ## -----------------------------
 # PERFORM EDM ON LONG DATASETS -
