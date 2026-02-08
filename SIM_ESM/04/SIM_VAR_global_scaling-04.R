@@ -176,6 +176,8 @@ for (sigma in Sigma_levels) {
   }
 }
 
+save(data_list.VAR.scaled.04,
+     file = "04/data_list-VAR-scaled-04.RData")
 
 # APPLY EDM COMPLEXITY TESTS TO VAR MODELS
 
@@ -216,6 +218,8 @@ for (N in N_list) {
           },
           .options = furrr_options(seed = TRUE)
         )
+        
+        VAR_EDM_results.1_100.04[[N_name]][[T_name]][[A_name]][[sigma_name]] <- person_results
       }  
     }
   }
@@ -223,4 +227,5 @@ for (N in N_list) {
 
 save(VAR_EDM_results.1_100.04,
      file = "04/VAR_EDM_results-04.RData")
+
 
