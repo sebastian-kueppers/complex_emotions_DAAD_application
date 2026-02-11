@@ -5,8 +5,8 @@
 setwd("C:/Users/Sebastian Küppers/Desktop/Formal Theory of Co-Occuring Emotions (DFG project)/_PhD/_PhD_Study_1/complexity_in_emotion_ESM_data/SIM_ESM")
 
 # Import helper functions for data generation
-source('HELPER_EDM_tests.R')
-source('data_generation.R')
+source('helpers/HELPER_EDM_tests.R')
+source('helpers/data_generation.R')
 
 # get packages
 library(MASS)
@@ -927,3 +927,452 @@ rownames(Lorenz.X.final_df.long) <- c()
 saveRDS(Lorenz.X.final_df.long,
         file = "04/results/LORENZ_EDM-long-df.rds")
 
+
+## ----------------------------------
+# DATA VISULAIZATION OF ALL ---------
+## ----------------------------------
+
+results.BISTABLE.long <- readRDS("04/results/BISTABLE_EDM-long-df.rds")
+results.LORENZ.long <- readRDS("04/results/LORENZ_EDM-long-df.rds")
+results.VAR.long <- readRDS("04/results/VAR_EDM-long-df.rds")
+
+# Append to other dataframes
+results.BISTABLE.all <- rbind(results.BISTABLE, results.BISTABLE.long)
+results.LORENZ.all <- rbind(results.LORENZ, results.LORENZ.long)
+results.VAR.all <- rbind(results.VAR, results.VAR.long)
+
+# -- Visualize only for Sigma1 (we only have VAR data for sigma = 1)
+sigma_panels <- c("Sigma1")
+
+# Make T into levels
+T_levels <- results.VAR.all %>%
+  distinct(T) %>%
+  mutate(T_num = as.numeric(sub("T", "", T))) %>%
+  arrange(T_num) %>%
+  pull(T)
+
+## ------------------------------
+# E_OPT -------------------------
+
+# Bistable
+df.bistable.all.E_opt <- results.BISTABLE.all %>%
+  filter(
+    Metric == "E_opt"
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    A = "BISTABLE",   
+    Sigma = "BISTABLE",
+    Source = "BISTABLE"
+  )
+
+df.bistable.all.E_opt.bySigma <- df.bistable.all.E_opt %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+
+# Lorenz 
+
+df.Lorenz.all.E_opt <- results.LORENZ.all %>%
+  filter(
+    Metric == "E_opt",
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels))
+
+df.Lorenz.all.E_opt <- df.Lorenz.all.E_opt %>%
+  as_tibble() %>%                    # convert to tibble
+  mutate(
+    T = factor(T, levels = T_levels),  # make T a factor
+    N = as.character(N),
+    Sigma = as.character(Sigma),
+    A = as.character(A),
+    Source = as.character(Source)
+  )
+
+df.Lorenz.all.E_opt.bySigma <- df.Lorenz.all.E_opt %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+# VAR data
+df.var.all.E_opt.bySigma <- results.VAR.all %>%
+  filter(
+    Metric == "E_opt",
+    Sigma %in% sigma_panels
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    Source = "VAR"
+  )
+
+# bind into one df
+df.all.E_opt.bySigma <- bind_rows(
+  df.var.all.E_opt.bySigma,
+  df.bistable.all.E_opt.bySigma,
+  df.Lorenz.all.E_opt.bySigma
+)
+
+df.all.E_opt.bySigma$A[df.all.E_opt.bySigma$A == "AA0.2"] <- "A0.2"
+df.all.E_opt.bySigma$A[df.all.E_opt.bySigma$A == "AA0.4"] <- "A0.4"
+df.all.E_opt.bySigma$A[df.all.E_opt.bySigma$A == "AA0.6"] <- "A0.6"
+df.all.E_opt.bySigma$A[df.all.E_opt.bySigma$A == "AA0.8"] <- "A0.8"
+
+
+# -- PLOT --
+
+# PLOT
+ggplot(
+  df.all.E_opt.bySigma,
+  aes(x = T, y = mean, group = A)
+) +
+  
+  geom_line(
+    data = subset(df.all.E_opt.bySigma, Source == "VAR"),
+    aes(color = A, group = A),
+    size = 1
+  ) +
+  
+  geom_line(
+    data = subset(df.all.E_opt.bySigma, Source == "BISTABLE"),
+    aes(color = "BISTABLE", group = Source),
+    size = 1.2
+  ) +
+  
+  geom_line(
+    data = subset(df.all.E_opt.bySigma, Source == "LORENZ"),
+    aes(color = "LORENZ", group = Source),
+    size = 1.2
+  ) +
+  
+  facet_wrap(~ Sigma, nrow = 1) +
+  
+  scale_color_manual(
+    name = "Dataset",
+    values = c(
+      "A0.2"     = "#c6dbef",
+      "A0.4"     = "#9ecae1",
+      "A0.6"     = "#6baed6",
+      "A0.8"     = "#3182bd",
+      "BISTABLE" = "orange",
+      "LORENZ"   = "green"
+    ),
+    breaks = c("A0.2", "A0.4", "A0.6", "A0.8", "BISTABLE", "LORENZ"),
+    labels = c("A = 0.2", "A = 0.4", "A = 0.6", "A = 0.8", "BISTABLE", "LORENZ")
+  ) +
+  
+  coord_cartesian(ylim = c(0, 8)) +
+  labs(
+    y = "Optimal Embedding Dimension",
+    x = "Time Series Length"
+  ) +
+  theme_minimal()
+
+
+## ----------------------------------
+# THETA_OPT -------------------------
+
+# Bistable
+df.bistable.all.theta_opt <- results.BISTABLE.all %>%
+  filter(
+    Metric == "theta_opt"
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    A = "BISTABLE",   
+    Sigma = "BISTABLE",
+    Source = "BISTABLE"
+  )
+
+df.bistable.all.theta_opt.bySigma <- df.bistable.all.theta_opt %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+
+# Lorenz 
+
+df.Lorenz.all.theta_opt <- results.LORENZ.all %>%
+  filter(
+    Metric == "theta_opt"
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels))
+
+df.Lorenz.all.theta_opt <- df.Lorenz.all.theta_opt %>%
+  as_tibble() %>%                    # convert to tibble
+  mutate(
+    T = factor(T, levels = T_levels),  # make T a factor
+    N = as.character(N),
+    Sigma = as.character(Sigma),
+    A = as.character(A),
+    Source = as.character(Source)
+  )
+
+df.Lorenz.all.theta_opt.bySigma <- df.Lorenz.all.theta_opt %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+# VAR data
+df.var.all.theta_opt.bySigma <- results.VAR.all %>%
+  filter(
+    Metric == "theta_opt",
+    Sigma %in% sigma_panels
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    Source = "VAR"
+  )
+
+# bind into one df
+df.all.theta_opt.bySigma <- bind_rows(
+  df.var.all.theta_opt.bySigma,
+  df.bistable.all.theta_opt.bySigma,
+  df.Lorenz.all.theta_opt.bySigma
+)
+
+df.all.theta_opt.bySigma$A[df.all.theta_opt.bySigma$A == "AA0.2"] <- "A0.2"
+df.all.theta_opt.bySigma$A[df.all.theta_opt.bySigma$A == "AA0.4"] <- "A0.4"
+df.all.theta_opt.bySigma$A[df.all.theta_opt.bySigma$A == "AA0.6"] <- "A0.6"
+df.all.theta_opt.bySigma$A[df.all.theta_opt.bySigma$A == "AA0.8"] <- "A0.8"
+
+# PLOT
+ggplot(
+  df.all.theta_opt.bySigma,
+  aes(x = T, y = mean, group = A)
+) +
+  
+  geom_line(
+    data = subset(df.all.theta_opt.bySigma, Source == "VAR"),
+    aes(color = A, group = A),
+    size = 1
+  ) +
+  
+  geom_line(
+    data = subset(df.all.theta_opt.bySigma, Source == "BISTABLE"),
+    aes(color = "BISTABLE", group = Source),
+    size = 1.2
+  ) +
+  
+  geom_line(
+    data = subset(df.all.theta_opt.bySigma, Source == "LORENZ"),
+    aes(color = "LORENZ", group = Source),
+    size = 1.2
+  ) +
+  
+  facet_wrap(~ Sigma, nrow = 1) +
+  
+  scale_color_manual(
+    name = "Dataset",
+    values = c(
+      "A0.2"     = "#c6dbef",
+      "A0.4"     = "#9ecae1",
+      "A0.6"     = "#6baed6",
+      "A0.8"     = "#3182bd",
+      "BISTABLE" = "orange",
+      "LORENZ"   = "green"
+    ),
+    breaks = c("A0.2", "A0.4", "A0.6", "A0.8", "BISTABLE", "LORENZ"),
+    labels = c("A = 0.2", "A = 0.4", "A = 0.6", "A = 0.8", "BISTABLE", "LORENZ")
+  ) +
+  
+  coord_cartesian(ylim = c(0, 8)) +
+  labs(
+    y = "Optimal Theta (= Nonlinearity)",
+    x = "Time Series Length"
+  ) +
+  theme_minimal()
+
+
+## -----------------------------
+# TRY AROUND WITH GAMs ---------
+## -----------------------------
+
+data_list.VAR.scaled <- readRDS("04/data/data_list-VAR-scaled-04.rds")
+data_list.bistable <- readRDS("04/data/data_list_bistable.rds")
+data_list.Lorenz <- readRDS("04/data/data_list_lorenz.rds")
+
+gam.results.Lorenz <- list()
+
+T_list <- c(25, 50, 75, 100, 150, 200)
+N_list <- c(100)
+
+# coef matrix
+A_list <- list(
+  A0.2 = matrix(c(
+    0.2,  0.1, -0.05, -0.05,
+    0.1,  0.2, -0.05, -0.05,
+    -0.05, -0.05,  0.2, 0.1,
+    -0.05, -0.05,  0.1, 0.2
+  ), 4, 4, byrow = TRUE),
+  
+  A0.4 = matrix(c(
+    0.4,  0.1, -0.05, -0.05,
+    0.1,  0.4, -0.05, -0.05,
+    -0.05, -0.05, 0.4,  0.1,
+    -0.05, -0.05, 0.1,  0.4
+  ), 4, 4, byrow = TRUE),
+  
+  A0.6 = matrix(c(
+    0.6,  0.1, -0.05, -0.05,
+    0.1,  0.6, -0.05, -0.05,
+    -0.05, -0.05,  0.6, 0.1,
+    -0.05, -0.05,  0.1, 0.6
+  ), 4, 4, byrow = TRUE),
+  
+  A0.8 = matrix(c(
+    0.8,  0.1, -0.05, -0.05,
+    0.1,  0.8, -0.05, -0.05,
+    -0.05, -0.05,  0.8, 0.1,
+    -0.05, -0.05,  0.1, 0.8
+  ), 4, 4, byrow = TRUE)
+)
+
+Sigmas <- c(0.1,0.5,1,1.5,2)
+
+## -------------------------------
+# VAR DATA -----------------------
+gam.results.VAR <- list()
+
+for (N in N_list) {
+  N_name <- paste0("N", N)
+  gam.results.VAR[[N_name]] <- list()
+  
+  for (T in T_list) {
+    T_name <- paste0("T", T)
+    gam.results.VAR[[N_name]][[T_name]] <- list()
+    
+    for (A in names(A_list)) {
+      A_name <- paste0("A", A)
+      gam.results.VAR[[N_name]][[T_name]][[A_name]] <- list()
+      
+      for (S in Sigmas) {
+        sigma_name <- paste0("Sigma", S)
+        
+        cat("Running GAM (parallel) for:",
+            N_name, T_name, A_name, sigma_name, "\n")
+        
+        data_all <- data_list.VAR.scaled[[N_name]][[T_name]][[A_name]][[sigma_name]][["likert_1_100"]]
+        
+        
+        # Parallelized person loop
+        person_results <- future_map(
+          data_all,
+          function(ts_data) {
+            cols <- colnames(ts_data)
+            ts_data$time <- 1:nrow(ts_data)
+            
+            edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
+            colnames(edf_df) <- cols
+            
+            for (i in 1:length(cols)) {
+              col <- cols[[i]]
+              gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+              smooth_edf <- sum(gam$edf[-1])
+              edf_df[[col]] <- smooth_edf
+            }
+            return(edf_df)
+          },
+          .options = furrr_options(seed = TRUE)
+        )
+        
+        gam.results.VAR[[N_name]][[T_name]][[A_name]][[sigma_name]] <- person_results
+      }  
+    }
+  }
+}
+
+saveRDS(gam.results.VAR,
+        file = "04/results/gam-results_VAR.rds")
+
+
+## -------------------------------
+# BISTABLE DATA ------------------
+
+gam.results.bistable <- list()
+
+for (N in N_list) {
+  N_name <- paste0("N", N)
+  gam.results.bistable[[N_name]] <- list()
+  
+  for (T in T_list) {
+    T_name <- paste0("T", T)
+    
+    cat("Running GAM (parallel) for:",
+        N_name, T_name, "\n")
+    
+    gam.results.bistable[[N_name]][[T_name]] <- list()
+    
+    data_all <- data_list.bistable[[N_name]][[T_name]][["likert_1_100"]]
+    
+    # Parallelized person loop
+    person_results <- future_map(
+      data_all,
+      function(ts_data) {
+        cols <- colnames(ts_data)
+        ts_data$time <- 1:nrow(ts_data)
+        
+        edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
+        colnames(edf_df) <- cols
+        
+        for (i in 1:length(cols)) {
+          col <- cols[[i]]
+          gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+          smooth_edf <- sum(gam$edf[-1])
+          edf_df[[col]] <- smooth_edf
+        }
+        return(edf_df)
+      },
+      .options = furrr_options(seed = TRUE)
+    )
+    
+    gam.results.bistable[[N_name]][[T_name]] <- person_results
+
+  }
+}
+
+saveRDS(gam.results.bistable,
+        file = "04/results/gam-results_bistable.rds")
+
+
+## -------------------------------
+# LORENZ DATA ------------------
+
+gam.results.Lorenz <- list()
+
+
+for (T in T_list) {
+  T_name <- paste0("T", T)
+  
+  cat("Running GAM (parallel) for:",
+      T_name, "\n")
+  
+  gam.results.Lorenz[[T_name]] <- list()
+  
+  ts_data <- data_list.Lorenz[[T_name]]
+  
+  cols <- colnames(ts_data)
+  ts_data$time <- 1:nrow(ts_data)
+  
+  edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
+  colnames(edf_df) <- cols
+  
+  for (i in 1:length(cols)) {
+    col <- cols[[i]]
+    gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+    smooth_edf <- sum(gam$edf[-1])
+    edf_df[[col]] <- smooth_edf
+  }
+  
+  gam.results.Lorenz[[T_name]] <- edf_df
+  
+}
+
+saveRDS(gam.results.Lorenz,
+        file = "04/results/gam-results_Lorenz.rds")
