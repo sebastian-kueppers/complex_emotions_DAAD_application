@@ -1266,14 +1266,15 @@ for (N in N_list) {
           data_all,
           function(ts_data) {
             cols <- colnames(ts_data)
-            ts_data$time <- 1:nrow(ts_data)
+            n <- nrow(ts_data)
+            ts_data$time <- 1:n
             
             edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
             colnames(edf_df) <- cols
             
             for (i in 1:length(cols)) {
               col <- cols[[i]]
-              gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+              gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
               smooth_edf <- sum(gam$edf[-1])
               edf_df[[col]] <- smooth_edf
             }
@@ -1289,7 +1290,7 @@ for (N in N_list) {
 }
 
 saveRDS(gam.results.VAR,
-        file = "04/results/gam-results_VAR.rds")
+        file = "04/results/gam-results_VAR_high-k.rds")
 
 
 ## -------------------------------
@@ -1316,14 +1317,15 @@ for (N in N_list) {
       data_all,
       function(ts_data) {
         cols <- colnames(ts_data)
-        ts_data$time <- 1:nrow(ts_data)
+        n <- nrow(ts_data)
+        ts_data$time <- 1:n
         
         edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
         colnames(edf_df) <- cols
         
         for (i in 1:length(cols)) {
           col <- cols[[i]]
-          gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+          gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
           smooth_edf <- sum(gam$edf[-1])
           edf_df[[col]] <- smooth_edf
         }
@@ -1338,7 +1340,7 @@ for (N in N_list) {
 }
 
 saveRDS(gam.results.bistable,
-        file = "04/results/gam-results_bistable.rds")
+        file = "04/results/gam-results_bistable_high-k.rds")
 
 
 ## -------------------------------
@@ -1358,14 +1360,16 @@ for (T in T_list) {
   ts_data <- data_list.Lorenz[[T_name]]
   
   cols <- colnames(ts_data)
-  ts_data$time <- 1:nrow(ts_data)
+  n <- nrow(ts_data)
+  
+  ts_data$time <- 1:n
   
   edf_df <- data.frame(matrix(nrow = 1, ncol = length(cols)))
   colnames(edf_df) <- cols
   
   for (i in 1:length(cols)) {
     col <- cols[[i]]
-    gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = 10))
+    gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
     smooth_edf <- sum(gam$edf[-1])
     edf_df[[col]] <- smooth_edf
   }
@@ -1375,4 +1379,109 @@ for (T in T_list) {
 }
 
 saveRDS(gam.results.Lorenz,
-        file = "04/results/gam-results_Lorenz.rds")
+        file = "04/results/gam-results_Lorenz_high-k.rds")
+
+
+## --------------------------------
+# AGGREGATE GAM RESULTS -----------
+## --------------------------------
+
+gam.results.VAR <- readRDS("04/results/gam-results_VAR.rds")
+gam.results.bistable <- readRDS("04/results/gam-results_bistable.rds")
+gam.results.Lorenz <- readRDS("04/results/gam-results_Lorenz.rds")
+
+## --------------------------------
+# VAR -----------------------------
+
+out <- list()
+
+for (N_name in names(gam.results.VAR)) {
+  N_list <- gam.results.VAR[[N_name]]
+  
+  for (T_name in names(N_list)) {
+    T_list <- N_list[[T_name]]
+    
+    for (A_name in names(T_list)) {
+      A_list <- T_list[[A_name]]
+      
+      for (Sigma_name in names(A_list)) {
+        Sigma_list <- A_list[[Sigma_name]]
+        
+        # Collect all 100 dfs into long format
+        long_df <- do.call(rbind, lapply(Sigma_list, function(df) {
+          df <- as.data.frame(df)
+          df %>%
+            rownames_to_column("Metric") %>%
+            pivot_longer(
+              cols = -Metric,
+              names_to = "Variable",
+              values_to = "Value"
+            )
+        }))
+        
+        summary_df <- long_df %>%
+          group_by(Metric) %>%
+          summarise(
+            mean  = mean(Value, na.rm = TRUE),
+            sd    = sd(Value, na.rm = TRUE),
+            .groups = "drop"
+          )
+        
+        summary_df$N     <- N_name
+        summary_df$T     <- T_name
+        summary_df$A     <- A_name
+        summary_df$Sigma <- Sigma_name
+        
+        out[[length(out) + 1]] <- summary_df
+      }
+    }
+  }
+}
+
+VAR_GAM.final_df <- bind_rows(out)
+VAR_GAM.final_df <- VAR_GAM.final_df[, c("N", "T", "A", "Sigma", "Metric", "mean", "sd")]
+VAR_GAM.final_df$Metric <- "EDF"
+
+
+## --------------------------
+# BISTABLE ------------------
+
+out_bistable <- list()
+
+for (N_name in names(gam.results.bistable)) {
+  N_list <- gam.results.bistable[[N_name]]
+  
+  for (T_name in names(N_list)) {
+    T_list <- N_list[[T_name]]
+    
+    long_df <- do.call(rbind, lapply(T_list, function(df) {
+      df <- as.data.frame(df)
+      df %>%
+        rownames_to_column("Metric") %>%
+        pivot_longer(
+          cols = -Metric,
+          names_to = "Variable",
+          values_to = "Value"
+        )
+    }))
+    
+    summary_df <- long_df %>%
+      group_by(Metric) %>%
+      summarise(
+        mean = mean(Value, na.rm = TRUE),
+        sd = sd(Value, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    summary_df$N <- N_name
+    summary_df$T <- T_name
+    
+    out_bistable[[length(out_bistable) + 1]] <- summary_df
+  }
+}
+
+BISTABLE_GAM.final_df <- bind_rows(out_bistable)
+BISTABLE_GAM.final_df$Metric <- "EDF"
+BISTABLE_GAM.final_df <- BISTABLE_GAM.final_df[, c("N", "T", "Metric", "mean", "sd")]
+
+
