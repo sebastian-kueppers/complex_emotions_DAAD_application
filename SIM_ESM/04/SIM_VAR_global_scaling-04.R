@@ -647,13 +647,14 @@ data_list.VAR.scaled.long.04 <- add_likert_next_to_raw_quantile(
 
 
 saveRDS(data_list.VAR.scaled.long.04,
-     file = "data/data_list-VAR-scaled-long-04.rds")
+     file = "04/data/data_list-VAR-scaled-long-04.rds")
 
+# data_list.VAR.scaled.long.04 <- readRDS("04/data/data_list-VAR-scaled-long-04.rds")
 
 ## ------------------------
 # BISTABLE MODEL ----------
 
-data_list.bistable.long <- readRDS("data/data_list_bistable_long.rds")
+data_list.bistable.long <- readRDS("04/data/data_list_bistable_long.rds")
 
 
 ## ------------------------
@@ -668,11 +669,11 @@ for (N in N_list.long) {
   N_name <- paste0("N", N)
   VAR_EDM_results.1_100.long.04[[N_name]] <- list()
   
-  for (T in N_list.long) {
+  for (T in T_list.long) {
     T_name <- paste0("T", T)
     VAR_EDM_results.1_100.long.04[[N_name]][[T_name]] <- list()
     
-    for (A in names(N_list.long)) {
+    for (A in names(A_list.long)) {
       A_name <- paste0("A", A)
       VAR_EDM_results.1_100.long.04[[N_name]][[T_name]][[A_name]] <- list()
       
@@ -682,7 +683,7 @@ for (N in N_list.long) {
         cat("Running EDM (parallel) for:",
             N_name, T_name, A_name, sigma_name, "\n")
         
-        data_all <- data_list.VAR.scaled.04[[N_name]][[T_name]][[A_name]][[sigma_name]][["likert_1_100"]]
+        data_all <- data_list.VAR.scaled.long.04[[N_name]][[T_name]][[A_name]][[sigma_name]][["likert_1_100"]]
         
         cols <- colnames(data_all[[1]])
         
@@ -706,6 +707,8 @@ for (N in N_list.long) {
   }
 }
 
+saveRDS(VAR_EDM_results.1_100.long.04,
+        file = "04/results/VAR_EDM-long-list.rds")
 
 out <- list()
 
@@ -755,10 +758,10 @@ for (N_name in names(VAR_EDM_results.1_100.long.04)) {
 VAR_EDM.final_df <- bind_rows(out)
 VAR_EDM.final_df <- VAR_EDM.final_df[, c("N", "T", "A", "Sigma", "Metric", "mean", "sd")]
 
-VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA1"] <- "A0.2"
-VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA2"] <- "A0.4"
-VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA3"] <- "A0.6"
-VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA4"] <- "A0.8"
+# VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA1"] <- "A0.2"
+# VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA2"] <- "A0.4"
+# VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA3"] <- "A0.6"
+# VAR_EDM.final_df$A[VAR_EDM.final_df$A == "AA4"] <- "A0.8"
 
 saveRDS(VAR_EDM.final_df,
         file = "04/results/VAR_EDM-long-df.rds")
