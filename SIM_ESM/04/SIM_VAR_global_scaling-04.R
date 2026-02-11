@@ -1275,7 +1275,7 @@ for (N in N_list) {
             for (i in 1:length(cols)) {
               col <- cols[[i]]
               gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
-              smooth_edf <- sum(gam$edf[-1])
+              smooth_edf <- summary(gam)$edf
               edf_df[[col]] <- smooth_edf
             }
             return(edf_df)
@@ -1326,7 +1326,7 @@ for (N in N_list) {
         for (i in 1:length(cols)) {
           col <- cols[[i]]
           gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
-          smooth_edf <- sum(gam$edf[-1])
+          smooth_edf <- summary(gam)$edf
           edf_df[[col]] <- smooth_edf
         }
         return(edf_df)
@@ -1370,7 +1370,7 @@ for (T in T_list) {
   for (i in 1:length(cols)) {
     col <- cols[[i]]
     gam <- gam(ts_data[[col]] ~ s(ts_data$time, bs = 'tp', k = n - 1))
-    smooth_edf <- sum(gam$edf[-1])
+    smooth_edf <- summary(gam)$edf
     edf_df[[col]] <- smooth_edf
   }
   
@@ -1485,3 +1485,174 @@ BISTABLE_GAM.final_df$Metric <- "EDF"
 BISTABLE_GAM.final_df <- BISTABLE_GAM.final_df[, c("N", "T", "Metric", "mean", "sd")]
 
 
+## -------------------------------
+# LORENZ -------------------------
+
+LORENZ_GAM.final_df <- data.frame(
+  N = numeric(),
+  T = numeric(),
+  Metric = character(),
+  mean = numeric(),
+  sd = numeric(),
+  Sigma = numeric(),
+  A = numeric(),
+  Source = character(),
+  stringsAsFactors = FALSE
+)
+
+for (T_name in names(gam.results.Lorenz)) {
+  T_num <- as.numeric(sub("T", "", T_name))
+  
+  df <- gam.results.Lorenz[[T_name]][, "X", drop = FALSE]
+  
+  temp <- data.frame(
+    Metric = rownames(df),
+    N = "N100",
+    T = T_name,
+    mean = df,
+    sd = 0,
+    Sigma = "LORENZ",
+    A = "LORENZ",
+    Source = "LORENZ",
+    stringsAsFactors = FALSE
+  )
+  
+  LORENZ_GAM.final_df <- rbind(LORENZ_GAM.final_df, temp)
+}
+
+colnames(LORENZ_GAM.final_df) <- c("Metric", "N", "T", "mean","sd","Sigma","A", "Source")
+LORENZ_GAM.final_df$Metric <- "EDF"
+
+## --------------------------
+# VISUALIZE EDF -------------
+## --------------------------
+
+# -- Organize into nice dataframes
+sigma_panels <- c("Sigma0.1", "Sigma1", "Sigma2")
+
+# Make T into levels
+T_levels <- VAR_GAM.final_df %>%
+  distinct(T) %>%
+  mutate(T_num = as.numeric(sub("T", "", T))) %>%
+  arrange(T_num) %>%
+  pull(T)
+
+## ------------------------------
+# E_OPT -------------------------
+
+# Bistable
+df.bistable.EDF <- BISTABLE_GAM.final_df %>%
+  filter(
+    Metric == "EDF"
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    A = "BISTABLE",   
+    Sigma = "BISTABLE",
+    Source = "BISTABLE"
+  )
+
+df.bistable.EDF.bySigma <- df.bistable.EDF %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+
+# Lorenz 
+
+df.Lorenz.EDF <- LORENZ_GAM.final_df %>%
+  filter(
+    Metric == "EDF",
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels))
+
+df.Lorenz.EDF <- df.Lorenz.EDF %>%
+  as_tibble() %>%                    # convert to tibble
+  mutate(
+    T = factor(T, levels = T_levels),  # make T a factor
+    N = as.character(N),
+    Sigma = as.character(Sigma),
+    A = as.character(A),
+    Source = as.character(Source)
+  )
+
+df.Lorenz.EDF.bySigma <- df.Lorenz.EDF %>%
+  select(-Sigma) %>%              # drop BISTABLE sigma
+  tidyr::crossing(
+    Sigma = sigma_panels          # replicate for each panel
+  )
+
+# VAR data
+df.var.EDF.bySigma <- VAR_GAM.final_df %>%
+  filter(
+    Metric == "EDF",
+    Sigma %in% sigma_panels
+  ) %>%
+  mutate(
+    T = factor(T, levels = T_levels),
+    Source = "VAR"
+  )
+
+# bind into one df
+df.all.EDF.bySigma <- bind_rows(
+  df.var.EDF.bySigma,
+  df.bistable.EDF.bySigma,
+  df.Lorenz.EDF.bySigma
+)
+
+df.all.EDF.bySigma$A[df.all.EDF.bySigma$A == "AA0.2"] <- "A0.2"
+df.all.EDF.bySigma$A[df.all.EDF.bySigma$A == "AA0.4"] <- "A0.4"
+df.all.EDF.bySigma$A[df.all.EDF.bySigma$A == "AA0.6"] <- "A0.6"
+df.all.EDF.bySigma$A[df.all.EDF.bySigma$A == "AA0.8"] <- "A0.8"
+
+
+# -- PLOT --
+
+# PLOT
+ggplot(
+  df.all.EDF.bySigma,
+  aes(x = T, y = mean, group = A)
+) +
+  
+  geom_line(
+    data = subset(df.all.EDF.bySigma, Source == "VAR"),
+    aes(color = A, group = A),
+    size = 1
+  ) +
+  
+  geom_line(
+    data = subset(df.all.EDF.bySigma, Source == "BISTABLE"),
+    aes(color = "BISTABLE", group = Source),
+    size = 1.2
+  ) +
+  
+  geom_line(
+    data = subset(df.all.EDF.bySigma, Source == "LORENZ"),
+    aes(color = "LORENZ", group = Source),
+    size = 1.2
+  ) +
+  
+  facet_wrap(~ Sigma, nrow = 1) +
+  
+  scale_color_manual(
+    name = "Dataset",
+    values = c(
+      "A0.2"     = "#c6dbef",
+      "A0.4"     = "#9ecae1",
+      "A0.6"     = "#6baed6",
+      "A0.8"     = "#3182bd",
+      "BISTABLE" = "orange",
+      "LORENZ"   = "green"
+    ),
+    breaks = c("A0.2", "A0.4", "A0.6", "A0.8", "BISTABLE", "LORENZ"),
+    labels = c("A = 0.2", "A = 0.4", "A = 0.6", "A = 0.8", "BISTABLE", "LORENZ")
+  ) +
+  
+  coord_cartesian(ylim = c(0, 10)) +
+  labs(
+    y = "EDM in GAM",
+    x = "Time Series Length"
+  ) +
+  theme_minimal()
