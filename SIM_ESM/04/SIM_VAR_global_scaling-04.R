@@ -844,3 +844,86 @@ BISTABLE_EDM.final_df <- BISTABLE_EDM.final_df[, c("N", "T", "Metric", "mean", "
 
 saveRDS(BISTABLE_EDM.final_df,
         file = "04/results/BISTABLE_EDM-long-df.rds")
+
+
+## ---------------------------
+# LORENZ SYSTEM LONG ---------
+
+library(deSolve)
+
+# from https://www.sixhat.net/lorenz-attractor-in-r.html
+parameters <- c(s = 10, r = 28, b = 8/3)
+state <- c(X = 0, Y = 1, Z = 1)
+
+Lorenz <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    dX <- s * (Y - X)
+    dY <- X * (r - Z) - Y
+    dZ <- X * Y - b * Z
+    list(c(dX, dY, dZ))
+  })
+}
+
+# Simulate Lorenz data for different T
+data_list.Lorenz.long <- list()
+
+for (i in 1:length(T_list.long)) {
+  T <- T_list.long[[i]]
+  T_name <- paste0("T", T)
+  
+  times <- seq(0, 50, by = 50 / T)[1:T]
+  out <- ode(y = state, times = times, func = Lorenz, parms = parameters)
+  
+  out.df <- as.data.frame(out)
+  
+  out.df[, 2:4] <- lapply(out.df[, 2:4], 
+                          min_max_to_scale, 
+                          new_min = 1,
+                          new_max = 100)
+  
+  data_list.Lorenz.long[[T_name]] <- out.df[,2:4]
+}
+
+EDM_results.lorenz.long <- lapply(data_list.Lorenz.long, EDM_tests)
+
+# Aggregate Lorenz into df
+# Initialize empty data.frame
+Lorenz.X.final_df.long <- data.frame(
+  N = numeric(),
+  T = numeric(),
+  Metric = character(),
+  mean = numeric(),
+  sd = numeric(),
+  Sigma = numeric(),
+  A = numeric(),
+  Source = character(),
+  stringsAsFactors = FALSE
+)
+
+for (T_name in names(EDM_results.lorenz.long)) {
+  T_num <- as.numeric(sub("T", "", T_name))
+  print(T_num)
+  
+  df <- EDM_results.lorenz.long[[T_name]][, "X", drop = FALSE]
+  
+  temp <- data.frame(
+    Metric = rownames(df),
+    N = "N100",
+    T = T_name,
+    mean = df,
+    sd = 0,
+    Sigma = "LORENZ",
+    A = "LORENZ",
+    Source = "LORENZ",
+    stringsAsFactors = FALSE
+  )
+  
+  Lorenz.X.final_df.long <- rbind(Lorenz.X.final_df.long, temp)
+}
+
+colnames(Lorenz.X.final_df.long) <- c("Metric", "N", "T", "mean","sd","Sigma","A", "Source")
+rownames(Lorenz.X.final_df.long) <- c()
+
+saveRDS(Lorenz.X.final_df.long,
+        file = "04/results/LORENZ_EDM-long-df.rds")
+
