@@ -222,8 +222,7 @@ DATA.AR <- simulate_ar1_grid_full(
 
 DATA.BISTABLE <- simulate_bistable_grid(
   N          = 100,
-  # T_list     = seq(25, 150, by = 25),
-  T_list     = c(3),
+  T_list     = seq(25, 150, by = 25),
   no_minutes = no_minutes,
   timestep   = 0.01,
   p          = p,
