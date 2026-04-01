@@ -120,79 +120,95 @@ simulate_ar1_grid_full <- function(
 simulate_bistable_grid <- function(
     N         = 100,
     T_list    = seq(25, 150, by = 25),
-    timestep  = 1,
+    no_minutes = 14 * 24 * 60,
+    timestep  = 0.01,
     p         = 4,
-    C         = C,
-    mu        = mu_bistable,
-    r         = r,
-    noiseSD   = 1,
+    C,
+    mu        = 1.6,
+    r         = c(1, 1, 1, 1),
+    noiseSD   = 4.5,
     likert_scales = list(
       "likert_1_7"   = c(1, 7),
       "likert_1_100" = c(1, 100)
     ),
-    seed      = NULL,
-    verbose   = TRUE
+    seed      = NULL
 ) {
   if (!is.null(seed)) set.seed(seed)
   
-  total_iterations <- length(T_list)
-  pb   <- txtProgressBar(min = 0, max = total_iterations, style = 3)
-  iter <- 0
+  pb   <- txtProgressBar(min = 0, max = N, style = 3)
   
+  # Step 1: Simulate full trajectory once per subject
+  raw_data_list <- vector("list", N)
+  
+  for (i in seq_len(N)) {
+    
+    init <- c(rnorm(1, 1.3, 1),
+              rnorm(1, 1.3, 1),
+              rnorm(1, 4.8, 1),
+              rnorm(1, 4.8, 1))
+    
+    data_full <- simulate_bistable_trajectory(
+      time     = no_minutes,
+      timestep = timestep,
+      p        = p,
+      C        = C,
+      mu       = mu,
+      r        = r,
+      init     = init,
+      noiseSD  = noiseSD,
+      noise    = TRUE,
+      pbar     = FALSE
+    )
+    
+    colnames(data_full) <- c("time", paste0("V", 1:p))
+    data_full <- subset(data_full, select = -time)
+    
+    raw_data_list[[i]] <- data_full
+    setTxtProgressBar(pb, i)
+  }
+  
+  close(pb)
+  
+  # Step 2: Downsample and scale for each T
   data_bistable <- list()
   
   for (T in T_list) {
     t_key <- paste0("T", T)
     
-    subject_list <- vector("list", N)
+    # Downsample each subject's full trajectory to T observations
+    raw_thinned <- lapply(raw_data_list, function(data) {
+      idx           <- round(seq(1, nrow(data), length.out = T))
+      data_thinned  <- data[idx, , drop = FALSE]
+      rownames(data_thinned) <- NULL
+      data_thinned
+    })
     
-    for (i in seq_len(N)) {
-      
-      traj <- simulate_bistable_trajectory(
-        time     = T,
-        timestep = timestep,
-        p        = p,
-        C        = C,
-        mu       = mu,
-        r        = r,
-        noiseSD  = noiseSD,
-        noise    = TRUE,
-        pbar     = FALSE
-      )
-      
-      subject_list[[i]] <- traj
-    }
-    
-    # Discretise each subject's trajectory to Likert scales
+    # Discretise to Likert scales
     likert_data <- list()
     for (nm in names(likert_scales)) {
       sc <- likert_scales[[nm]]
-      likert_data[[nm]] <- lapply(subject_list, function(traj) {
-        # Apply min-max scaling to each variable column (x1:x4)
+      likert_data[[nm]] <- lapply(raw_thinned, function(df) {
         out <- as.data.frame(
-          lapply(traj[, paste0("x", 1:p)], min_max_to_scale,
+          lapply(df, min_max_to_scale,
                  new_min = sc[1],
                  new_max = sc[2])
         )
-        colnames(out) <- paste0(paste0("x", 1:p), "_", nm)
+        colnames(out) <- paste0(colnames(df), "_", nm)
         out
       })
     }
     
-    data_bistable[[t_key]] <- list(
-      raw    = subject_list,
-      likert_data[[1]],
-      likert_data[[2]]
+    data_bistable[[t_key]] <- c(
+      list(raw = raw_thinned),
+      likert_data
     )
-    names(data_bistable[[t_key]]) <- c("raw", names(likert_scales))
     
-    iter <- iter + 1
-    setTxtProgressBar(pb, iter)
+    cat("Downsampled: T =", T, "\n")
   }
   
-  close(pb)
   data_bistable
 }
+
 
 
 DATA.AR <- simulate_ar1_grid_full(
@@ -205,17 +221,19 @@ DATA.AR <- simulate_ar1_grid_full(
 )
 
 DATA.BISTABLE <- simulate_bistable_grid(
-  N        = 100,
-  T_list   = seq(25, 150, by = 25),
-  timestep = 1,
-  p        = p,
-  C        = C,
-  mu       = mu_bistable,
-  r        = r,
-  noiseSD  = 1,
-  seed     = 42,
-  verbose  = TRUE
+  N          = 100,
+  # T_list     = seq(25, 150, by = 25),
+  T_list     = c(3),
+  no_minutes = no_minutes,
+  timestep   = 0.01,
+  p          = p,
+  C          = C,
+  mu         = 1.6,
+  r          = r,
+  noiseSD    = 4.5,
+  seed       = 42
 )
+
 
 saveRDS(DATA.AR, file = "DATA_AR.rds")
 saveRDS(DATA.BISTABLE, file = "DATA_BISTABLE.rds")
