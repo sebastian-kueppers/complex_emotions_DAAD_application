@@ -126,6 +126,10 @@ simulate_bistable_grid <- function(
     mu        = mu_bistable,
     r         = r,
     noiseSD   = 1,
+    likert_scales = list(
+      "likert_1_7"   = c(1, 7),
+      "likert_1_100" = c(1, 100)
+    ),
     seed      = NULL,
     verbose   = TRUE
 ) {
@@ -159,7 +163,28 @@ simulate_bistable_grid <- function(
       subject_list[[i]] <- traj
     }
     
-    data_bistable[[t_key]] <- subject_list
+    # Discretise each subject's trajectory to Likert scales
+    likert_data <- list()
+    for (nm in names(likert_scales)) {
+      sc <- likert_scales[[nm]]
+      likert_data[[nm]] <- lapply(subject_list, function(traj) {
+        # Apply min-max scaling to each variable column (x1:x4)
+        out <- as.data.frame(
+          lapply(traj[, paste0("x", 1:p)], min_max_to_scale,
+                 new_min = sc[1],
+                 new_max = sc[2])
+        )
+        colnames(out) <- paste0(paste0("x", 1:p), "_", nm)
+        out
+      })
+    }
+    
+    data_bistable[[t_key]] <- list(
+      raw    = subject_list,
+      likert_data[[1]],
+      likert_data[[2]]
+    )
+    names(data_bistable[[t_key]]) <- c("raw", names(likert_scales))
     
     iter <- iter + 1
     setTxtProgressBar(pb, iter)
@@ -168,6 +193,7 @@ simulate_bistable_grid <- function(
   close(pb)
   data_bistable
 }
+
 
 DATA.AR <- simulate_ar1_grid_full(
   N_list     = c(100),
@@ -250,13 +276,14 @@ process_subject_ar <- function(subject_df) {
   bds_bootstrap(ar.res_z, m = 2, eps = 1, B = 499)
 }
 
-process_subject_bistable <- function(traj) {
-  ts       <- na.omit(traj$x1)
+process_subject_bistable <- function(subject_df) {
+  ts       <- na.omit(subject_df$x1_likert_1_100)
   ar.fit   <- arima(ts, order = c(1, 0, 0))
   ar.res   <- na.omit(residuals(ar.fit))
   ar.res_z <- scale(ar.res)[, 1]
   bds_bootstrap(ar.res_z, m = 2, eps = 1, B = 499)
 }
+
 
 ## ----------------------------------
 # Apply BDS test: AR ----------------
@@ -357,9 +384,8 @@ RESULTS.BISTABLE <- list()
 for (t_key in names(DATA.BISTABLE)) {
   RESULTS.BISTABLE[[t_key]] <- list()
   
-  subject_list <- DATA.BISTABLE[[t_key]]
+  subject_list <- DATA.BISTABLE[[t_key]]$likert_1_100
   
-  # Parallelise over subjects within each T condition
   condition_results <- furrr::future_map(
     subject_list,
     process_subject_bistable,
